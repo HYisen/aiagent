@@ -13,7 +13,7 @@ import (
 const ChatModelDeepSeekV3 openai.ChatModel = "deepseek-chat"
 const ChatModelDeepSeekR1 openai.ChatModel = "deepseek-reasoner"
 
-var DeepSeekAPIKey = flag.String("DeekSeekAPIKey", "this_is_a_secret", "API Key from platform.deepseek.com/api_keys")
+var DeepSeekAPIKey = flag.String("DeepSeekAPIKey", "this_is_a_secret", "API Key from platform.deepseek.com/api_keys")
 
 func main() {
 	client := openai.NewClient(
