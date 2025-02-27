@@ -10,8 +10,14 @@ import (
 	"log"
 )
 
-const ChatModelDeepSeekV3 openai.ChatModel = "deepseek-chat"
-const ChatModelDeepSeekR1 openai.ChatModel = "deepseek-reasoner"
+// Define enums for better understanding over name, not supposed to be all used
+// ref https://api-docs.deepseek.com/quick_start/pricing
+//
+//goland:noinspection GoUnusedConst
+const (
+	ChatModelDeepSeekV3 openai.ChatModel = "deepseek-chat"
+	ChatModelDeepSeekR1 openai.ChatModel = "deepseek-reasoner"
+)
 
 var DeepSeekAPIKey = flag.String("DeepSeekAPIKey", "this_is_a_secret", "API Key from platform.deepseek.com/api_keys")
 
