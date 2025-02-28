@@ -22,26 +22,34 @@ const (
 var DeepSeekAPIKey = flag.String("DeepSeekAPIKey", "this_is_a_secret", "API Key from platform.deepseek.com/api_keys")
 
 func main() {
+	msg, err := OneShot("write a haiku about ai")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	msg.Print()
+}
+
+func OneShot(content string) (*Message, error) {
 	client := openai.NewClient(
 		option.WithAPIKey(*DeepSeekAPIKey),
 		option.WithBaseURL("https://api.deepseek.com"),
 	)
 	chatCompletion, err := client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
 		Messages: openai.F([]openai.ChatCompletionMessageParamUnion{
-			openai.UserMessage("write a haiku about ai"),
+			openai.UserMessage(content),
 		}),
 		Model: openai.F(ChatModelDeepSeekR1),
 	})
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("fetch response: %w", err)
 	}
 	if len(chatCompletion.Choices) != 1 {
-		log.Printf("not single choices %d in response %+v", len(chatCompletion.Choices), chatCompletion.Choices)
+		return nil, fmt.Errorf("not single choices %d in resp %+v", len(chatCompletion.Choices), chatCompletion.Choices)
 	}
 	choice := chatCompletion.Choices[0]
 	if choice.FinishReason != "stop" {
 		// expected from stop, content_filter has been witnessed
-		log.Printf("unexpected finish reason %s", choice.FinishReason)
+		return nil, fmt.Errorf("unexpected finish reason %s", choice.FinishReason)
 	}
 	fmt.Println(choice.Message.JSON.Role)
 	fmt.Println(choice.Message.JSON.Refusal)
@@ -51,9 +59,9 @@ func main() {
 
 	var msg Message
 	if err := json.Unmarshal([]byte(choice.Message.JSON.RawJSON()), &msg); err != nil {
-		log.Fatalln(err)
+		return nil, fmt.Errorf("parse JSON in response: %w", err)
 	}
-	msg.Print()
+	return &msg, nil
 }
 
 type Message struct {
