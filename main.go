@@ -22,19 +22,31 @@ const (
 var DeepSeekAPIKey = flag.String("DeepSeekAPIKey", "this_is_a_secret", "API Key from platform.deepseek.com/api_keys")
 
 func main() {
-	msg, err := OneShot("write a haiku about ai")
+	service := NewService(NewDeepSeekClient(*DeepSeekAPIKey))
+	msg, err := service.OneShot("write a haiku about ai")
 	if err != nil {
 		log.Fatalln(err)
 	}
 	msg.Print()
 }
 
-func OneShot(content string) (*Message, error) {
-	client := openai.NewClient(
-		option.WithAPIKey(*DeepSeekAPIKey),
+type Service struct {
+	client *openai.Client
+}
+
+func NewService(client *openai.Client) *Service {
+	return &Service{client: client}
+}
+
+func NewDeepSeekClient(apiKey string) *openai.Client {
+	return openai.NewClient(
+		option.WithAPIKey(apiKey),
 		option.WithBaseURL("https://api.deepseek.com"),
 	)
-	chatCompletion, err := client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
+}
+
+func (s *Service) OneShot(content string) (*Message, error) {
+	chatCompletion, err := s.client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
 		Messages: openai.F([]openai.ChatCompletionMessageParamUnion{
 			openai.UserMessage(content),
 		}),
