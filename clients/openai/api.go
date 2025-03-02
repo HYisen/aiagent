@@ -16,6 +16,7 @@ const (
 type Request struct {
 	Messages []Message `json:"messages"`
 	Model    ChatModel `json:"model"`
+	Stream   bool      `json:"stream"`
 }
 
 type Message struct {
@@ -33,13 +34,32 @@ func (m Message) Print() {
 }
 
 type Response struct {
-	ID                string   `json:"id"`
-	Object            string   `json:"object"`
-	Created           int64    `json:"created"` // epoch second
-	Model             string   `json:"model"`
-	Choices           []Choice `json:"choices"`
-	Usage             Usage    `json:"usage"`
-	SystemFingerPrint string   `json:"system_finger_print"`
+	Object string `json:"object"`
+	ChatCompletion
+}
+
+type ChunkResponse struct {
+	Object string `json:"object"`
+	ChatCompletionChunk
+}
+
+type ChatCompletion struct {
+	ChatCompletionBase
+	Choices []Choice `json:"choices"`
+	Usage   Usage    `json:"usage"`
+}
+
+type ChatCompletionBase struct {
+	ID                string `json:"id"`
+	Created           int64  `json:"created"` // epoch second
+	Model             string `json:"model"`
+	SystemFingerPrint string `json:"system_finger_print"`
+}
+
+type ChatCompletionChunk struct {
+	ChatCompletionBase
+	Choices []ChunkChoice `json:"choices"`
+	Usage   *Usage        `json:"usage"`
 }
 
 type FinishReason = string
@@ -58,7 +78,14 @@ const (
 type Choice struct {
 	Index        int          `json:"index"`
 	Message      Message      `json:"message"`
-	FinishReason FinishReason `json:"finish_reason,omitempty"` // not enum as it's other decided.
+	FinishReason FinishReason `json:"finish_reason,omitempty"`
+	// field logprobs is ignored as it's null as long as I have not supported to require it in Request yet
+}
+
+type ChunkChoice struct {
+	Index        int           `json:"index"`
+	Delta        Message       `json:"delta"`
+	FinishReason *FinishReason `json:"finish_reason,omitempty"`
 	// field logprobs is ignored as it's null as long as I have not supported to require it in Request yet
 }
 
