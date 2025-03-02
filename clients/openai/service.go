@@ -23,22 +23,19 @@ func NewService(baseURL, apiKey string) *Service {
 	}
 }
 
-func (s *Service) OneShot(content string) error {
-	data, err := json.Marshal(Request{
-		Messages: []Message{{
-			Role:    "user",
-			Content: content,
-		}},
-		Model: ChatModelDeepSeekR1,
+func (s *Service) OneShot(request Request) (*ChatCompletion, error) {
+	data, err := json.Marshal(RequestWhole{
+		Request: request,
+		Stream:  false,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	url := s.baseURL + "/chat/completions"
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")
@@ -46,7 +43,7 @@ func (s *Service) OneShot(content string) error {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -57,30 +54,24 @@ func (s *Service) OneShot(content string) error {
 
 	var response Response
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return err
+		return nil, err
 	}
-
-	fmt.Printf("%+v\n", response)
-	return nil
+	return &response.ChatCompletion, nil
 }
 
-func (s *Service) OneShotStream(content string) error {
-	data, err := json.Marshal(Request{
-		Messages: []Message{{
-			Role:    "user",
-			Content: content,
-		}},
-		Model:  ChatModelDeepSeekR1,
-		Stream: true,
+func (s *Service) OneShotStream(request Request, ch chan<- ChatCompletionChunk) (aggregated *ChatCompletion, err error) {
+	data, err := json.Marshal(RequestWhole{
+		Request: request,
+		Stream:  true,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	url := s.baseURL + "/chat/completions"
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")
@@ -88,7 +79,7 @@ func (s *Service) OneShotStream(content string) error {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -99,6 +90,8 @@ func (s *Service) OneShotStream(content string) error {
 
 	scanner := bufio.NewScanner(resp.Body)
 	var done bool
+	// Initiate choices with len 1 as Aggregate does not create, don't ask me how I find it vital.
+	aggregated = &ChatCompletion{Choices: make([]Choice, 1)}
 	for scanner.Scan() {
 		line := scanner.Text()
 		// ref https://api-docs.deepseek.com/faq#why-are-empty-lines-continuously-returned-when-calling-the-api
@@ -112,12 +105,12 @@ func (s *Service) OneShotStream(content string) error {
 		}
 
 		if done {
-			return fmt.Errorf("extra line after [DONE] %q", line)
+			return nil, fmt.Errorf("extra line after [DONE] %q", line)
 		}
 
 		after, found := strings.CutPrefix(line, "data: ")
 		if !found {
-			return fmt.Errorf("bad format SSE data line %q", line)
+			return nil, fmt.Errorf("bad format SSE data line %q", line)
 		}
 		if after == "[DONE]" {
 			done = true
@@ -126,9 +119,13 @@ func (s *Service) OneShotStream(content string) error {
 
 		var response ChunkResponse
 		if err := json.Unmarshal([]byte(after), &response); err != nil {
-			return err
+			return nil, err
 		}
-		fmt.Printf("%+v\n", response)
+		ch <- response.ChatCompletionChunk
+		aggregated.Aggregate(response.ChatCompletionChunk)
 	}
-	return scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return aggregated, nil
 }

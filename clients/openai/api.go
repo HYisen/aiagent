@@ -1,6 +1,9 @@
 package openai
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 type ChatModel = string // it's openai.ChatModel
 
@@ -16,7 +19,11 @@ const (
 type Request struct {
 	Messages []Message `json:"messages"`
 	Model    ChatModel `json:"model"`
-	Stream   bool      `json:"stream"`
+}
+
+type RequestWhole struct {
+	Request
+	Stream bool `json:"stream"`
 }
 
 type Message struct {
@@ -47,6 +54,39 @@ type ChatCompletion struct {
 	ChatCompletionBase
 	Choices []Choice `json:"choices"`
 	Usage   Usage    `json:"usage"`
+}
+
+func (cc *ChatCompletion) Aggregate(chunk ChatCompletionChunk) {
+	// As I observed, ChatCompletionBase among chunks always exists and are identical;
+	// therefore, only copy once on empty and use one filed as the canary.
+	if cc.ID == "" {
+		cc.ChatCompletionBase = chunk.ChatCompletionBase
+	}
+	// only one not nil in the final chunk
+	if chunk.Usage != nil {
+		cc.Usage = *chunk.Usage
+	}
+
+	if len(chunk.Choices) != 1 || len(cc.Choices) != 1 {
+		// I have never seen such kind of response, just not supported yet.
+		// Won't happen unless the source code here is implemented wrong.
+		panic(fmt.Errorf(
+			"aggregate ChatCompletion with not single choices %d %d: %w",
+			len(cc.Choices),
+			len(chunk.Choices),
+			errors.ErrUnsupported,
+		))
+	}
+	neo := chunk.Choices[0]
+	// only one not nil in the final chunk
+	if neo.FinishReason != nil {
+		cc.Choices[0].FinishReason = *neo.FinishReason
+	}
+	// Ignore field Index because all of them are zero, as long as previous len(choices) assert passed.
+	// null string in Message JSON is decoded to "", thus safe to join.
+	cc.Choices[0].Message.Role += neo.Delta.Role
+	cc.Choices[0].Message.Content += neo.Delta.Content
+	cc.Choices[0].Message.ReasoningContent += neo.Delta.ReasoningContent
 }
 
 type ChatCompletionBase struct {
