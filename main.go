@@ -2,6 +2,7 @@ package main
 
 import (
 	"aiagent/clients/openai"
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -19,14 +20,14 @@ func main() {
 		Model: openai.ChatModelDeepSeekR1,
 	}
 
-	rsp, err := service.OneShot(req)
+	rsp, err := service.OneShot(context.Background(), req)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", rsp)
 
 	fmt.Println("\nnext stream")
-	aggregated, err := service.OneShotStream(req, NewPrintChannel())
+	aggregated, err := service.OneShotStream(context.Background(), req, NewPrintChannel())
 	if err != nil {
 		log.Fatal(err)
 	}

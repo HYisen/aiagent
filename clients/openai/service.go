@@ -3,6 +3,7 @@ package openai
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,72 +24,70 @@ func NewService(baseURL, apiKey string) *Service {
 	}
 }
 
-func (s *Service) OneShot(request Request) (*ChatCompletion, error) {
-	data, err := json.Marshal(RequestWhole{
+func (s *Service) chat(ctx context.Context, request RequestWhole) (body io.ReadCloser, err error) {
+	data, err := json.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+
+	url := s.baseURL + "/chat/completions"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Authorization", "Bearer "+s.apiKey)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Body, nil
+}
+
+func (s *Service) OneShot(ctx context.Context, request Request) (*ChatCompletion, error) {
+	body, err := s.chat(ctx, RequestWhole{
 		Request: request,
 		Stream:  false,
 	})
 	if err != nil {
 		return nil, err
 	}
-
-	url := s.baseURL + "/chat/completions"
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Authorization", "Bearer "+s.apiKey)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
 			log.Printf("warn: potential resource leak as failed to close body: %v", err)
 		}
-	}(resp.Body)
+	}(body)
 
 	var response Response
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := json.NewDecoder(body).Decode(&response); err != nil {
 		return nil, err
 	}
 	return &response.ChatCompletion, nil
 }
 
-func (s *Service) OneShotStream(request Request, ch chan<- ChatCompletionChunk) (aggregated *ChatCompletion, err error) {
-	data, err := json.Marshal(RequestWhole{
+func (s *Service) OneShotStream(
+	ctx context.Context,
+	request Request,
+	ch chan<- ChatCompletionChunk,
+) (aggregated *ChatCompletion, err error) {
+	body, err := s.chat(ctx, RequestWhole{
 		Request: request,
 		Stream:  true,
 	})
 	if err != nil {
 		return nil, err
 	}
-
-	url := s.baseURL + "/chat/completions"
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Authorization", "Bearer "+s.apiKey)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
 			log.Printf("warn: potential resource leak as failed to close body: %v", err)
 		}
-	}(resp.Body)
+	}(body)
 
-	scanner := bufio.NewScanner(resp.Body)
+	scanner := bufio.NewScanner(body)
 	var done bool
 	// Initiate choices with len 1 as Aggregate does not create, don't ask me how I find it vital.
 	aggregated = &ChatCompletion{Choices: make([]Choice, 1)}
