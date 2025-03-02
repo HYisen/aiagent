@@ -89,6 +89,15 @@ func (s *Service) OneShotStream(
 	// Initiate choices with len 1 as Aggregate does not create, don't ask me how I find it vital.
 	aggregated = &ChatCompletion{Choices: make([]Choice, 1)}
 	for scanner.Scan() {
+		// I have tried pulling parseTrunkData to lower Cyclomatic Complexity.
+		// Blaming the done control, it's pull 5 and leave extra 2 CC in place,
+		// which helps little. In the end I decided to leave the complexity here.
+
+		// The SSE date line and done check never works while I am developing their handler.
+		// Comparing to len(choices), they are more likely to change on the server side.
+		// Maybe I shall make them warnings once triggered,
+		// implementing best-effort strategy in the cost of sensitivity.
+
 		line := scanner.Text()
 		// ref https://api-docs.deepseek.com/faq#why-are-empty-lines-continuously-returned-when-calling-the-api
 		if line == ": keep-alive" {
