@@ -54,18 +54,20 @@ func (s *Service) OneShot(ctx context.Context, request Request) (*ChatCompletion
 	if err != nil {
 		return nil, err
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			log.Printf("warn: potential resource leak as failed to close body: %v", err)
-		}
-	}(body)
+	defer CloseAndWarnIfFail(body)
 
 	var response Response
 	if err := json.NewDecoder(body).Decode(&response); err != nil {
 		return nil, err
 	}
 	return &response.ChatCompletion, nil
+}
+
+func CloseAndWarnIfFail(c io.Closer) {
+	err := c.Close()
+	if err != nil {
+		log.Printf("warn: potential resource leak as failed to close body: %v", err)
+	}
 }
 
 func (s *Service) OneShotStream(
@@ -80,12 +82,7 @@ func (s *Service) OneShotStream(
 	if err != nil {
 		return nil, err
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			log.Printf("warn: potential resource leak as failed to close body: %v", err)
-		}
-	}(body)
+	defer CloseAndWarnIfFail(body)
 
 	scanner := bufio.NewScanner(body)
 	var done bool
