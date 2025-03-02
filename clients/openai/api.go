@@ -32,6 +32,17 @@ type Message struct {
 	ReasoningContent string `json:"reasoning_content,omitempty"`
 }
 
+// AsHistoryRecord on item in Response converts it to Request.
+// At present, it drops CoT field as the requirement from
+// https://api-docs.deepseek.com/guides/reasoning_model#multi-round-conversation
+func (m Message) AsHistoryRecord() Message {
+	return Message{
+		Role:             m.Role,
+		Content:          m.Content,
+		ReasoningContent: "",
+	}
+}
+
 func (m Message) Print() {
 	fmt.Printf("role: %s\n", m.Role)
 	fmt.Println("> reason")
