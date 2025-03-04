@@ -104,7 +104,7 @@ type ChatCompletionBase struct {
 	ID                string `json:"id"`
 	Created           int64  `json:"created"` // epoch second
 	Model             string `json:"model"`
-	SystemFingerPrint string `json:"system_finger_print"`
+	SystemFingerprint string `json:"system_fingerprint"`
 }
 
 type ChatCompletionChunk struct {
