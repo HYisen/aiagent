@@ -139,8 +139,18 @@ func NewWeb(allowCORS bool, handlers ...Handler) *Web {
 	return &Web{handlers: handlers, allowCORS: allowCORS}
 }
 
+var timeout = 1000 * time.Millisecond
+
+// SetTimeout setups the timeout of ctx created and passed by the framework.
+// A default value of 1000 ms would be used without any explicit invoke of this function.
+// Once ServeHTTP, which could be an instance of Web being passed to http.ListenAndServe, will NOT take effect.
+// Better to used just before the start network listening action.
+func SetTimeout(duration time.Duration) {
+	timeout = duration
+}
+
 var serverContextCreator = func() (ctx context.Context, cancel context.CancelFunc) {
-	const threshold = 1000 * time.Millisecond
+	threshold := timeout
 	cause := fmt.Errorf("handler exceed timeout %v", threshold)
 	return context.WithTimeoutCause(context.Background(), threshold, cause)
 }
