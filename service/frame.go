@@ -207,6 +207,7 @@ func (w *Web) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		} else {
 			slog.Error("resp " + e.Error())
 		}
+		writer.WriteHeader(e.Code)
 		_, _ = writer.Write([]byte(e.Err.Error()))
 		return
 	}
