@@ -2,11 +2,14 @@ package main
 
 import (
 	"aiagent/clients/openai"
+	"aiagent/service"
 	"bufio"
 	"context"
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -15,7 +18,9 @@ import (
 
 var DeepSeekAPIKey = flag.String("DeepSeekAPIKey", "this_is_a_secret", "API Key from platform.deepseek.com/api_keys")
 
-var mode = flag.String("mode", "REPL", "app mode from SmokeTest|REPL|server")
+var mode = flag.String("mode", "server", "app mode from SmokeTest|REPL|server")
+
+var port = flag.Int("port", 8640, "where server mode serve on localhost")
 
 func main() {
 	flag.Parse()
@@ -24,6 +29,18 @@ func main() {
 		repl()
 	case "SmokeTest":
 		basic()
+	case "server":
+		client := openai.New("https://api.deepseek.com", *DeepSeekAPIKey)
+		s := service.New(client)
+		local, err := url.Parse(fmt.Sprintf("http://localhost:%d", *port))
+		if err != nil {
+			log.Fatal(err)
+		}
+		service.SetTimeout(30 * time.Second) // LLM is relative slow.
+		err = http.ListenAndServe(local.Host, s)
+		if err != nil {
+			log.Fatal(err)
+		}
 	default:
 		log.Fatalf("unsupported mode %s", *mode)
 	}
