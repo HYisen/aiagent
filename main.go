@@ -30,7 +30,7 @@ func main() {
 }
 
 func repl() {
-	service := openai.NewService("https://api.deepseek.com", *DeepSeekAPIKey)
+	client := openai.New("https://api.deepseek.com", *DeepSeekAPIKey)
 	var history []openai.Message
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -44,7 +44,7 @@ func repl() {
 		log.Printf("read line : %s\n", line)
 		history = append(history, openai.NewUserMessage(line))
 		fmt.Printf("sending with history size %d\n", len(history))
-		cc, err := service.OneShotStream(context.Background(), openai.Request{
+		cc, err := client.OneShotStream(context.Background(), openai.Request{
 			Messages: history,
 			Model:    openai.ChatModelDeepSeekR1,
 		}, NewPrintWordChannel())
@@ -56,7 +56,7 @@ func repl() {
 }
 
 func basic() {
-	service := openai.NewService("https://api.deepseek.com", *DeepSeekAPIKey)
+	client := openai.New("https://api.deepseek.com", *DeepSeekAPIKey)
 	req := openai.Request{
 		Messages: []openai.Message{{
 			Role:    "user",
@@ -65,14 +65,14 @@ func basic() {
 		Model: openai.ChatModelDeepSeekR1,
 	}
 
-	rsp, err := service.OneShot(context.Background(), req)
+	rsp, err := client.OneShot(context.Background(), req)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("%+v\n", rsp)
 
 	fmt.Println("\nnext stream")
-	aggregated, err := service.OneShotStream(context.Background(), req, NewPrintItemChannel())
+	aggregated, err := client.OneShotStream(context.Background(), req, NewPrintItemChannel())
 	if err != nil {
 		log.Fatal(err)
 	}

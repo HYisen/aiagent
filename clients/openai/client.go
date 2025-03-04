@@ -12,32 +12,32 @@ import (
 	"strings"
 )
 
-type Service struct {
+type Client struct {
 	baseURL string
 	apiKey  string
 }
 
-func NewService(baseURL, apiKey string) *Service {
-	return &Service{
+func New(baseURL, apiKey string) *Client {
+	return &Client{
 		baseURL: baseURL,
 		apiKey:  apiKey,
 	}
 }
 
-func (s *Service) chat(ctx context.Context, request RequestWhole) (body io.ReadCloser, err error) {
+func (c *Client) chat(ctx context.Context, request RequestWhole) (body io.ReadCloser, err error) {
 	data, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
 	}
 
-	url := s.baseURL + "/chat/completions"
+	url := c.baseURL + "/chat/completions"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Authorization", "Bearer "+s.apiKey)
+	req.Header.Add("Authorization", "Bearer "+c.apiKey)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -46,8 +46,8 @@ func (s *Service) chat(ctx context.Context, request RequestWhole) (body io.ReadC
 	return resp.Body, nil
 }
 
-func (s *Service) OneShot(ctx context.Context, request Request) (*ChatCompletion, error) {
-	body, err := s.chat(ctx, RequestWhole{
+func (c *Client) OneShot(ctx context.Context, request Request) (*ChatCompletion, error) {
+	body, err := c.chat(ctx, RequestWhole{
 		Request: request,
 		Stream:  false,
 	})
@@ -70,12 +70,12 @@ func CloseAndWarnIfFail(c io.Closer) {
 	}
 }
 
-func (s *Service) OneShotStream(
+func (c *Client) OneShotStream(
 	ctx context.Context,
 	request Request,
 	ch chan<- ChatCompletionChunk,
 ) (aggregated *ChatCompletion, err error) {
-	body, err := s.chat(ctx, RequestWhole{
+	body, err := c.chat(ctx, RequestWhole{
 		Request: request,
 		Stream:  true,
 	})
