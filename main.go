@@ -42,11 +42,7 @@ func repl() {
 			break
 		}
 		log.Printf("read line : %s\n", line)
-		history = append(history, openai.Message{
-			Role:             "user",
-			Content:          line,
-			ReasoningContent: "",
-		})
+		history = append(history, openai.NewUserMessage(line))
 		fmt.Printf("sending with history size %d\n", len(history))
 		cc, err := service.OneShotStream(context.Background(), openai.Request{
 			Messages: history,
