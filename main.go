@@ -55,7 +55,7 @@ func repl() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		history = append(history, cc.Choices[0].Message.AsHistoryRecord())
+		history = append(history, cc.Choices[0].Message.HistoryRecord())
 	}
 }
 
