@@ -1,57 +1,19 @@
 package service
 
 import (
+	"aiagent/clients/chat"
 	"aiagent/clients/model"
 	"aiagent/clients/openai"
 	"aiagent/clients/session"
 	"context"
 	"encoding/json"
+	"errors"
+	"gorm.io/gorm"
 	"net/http"
 	"reflect"
 	"sync"
 	"time"
 )
-
-type Session struct {
-	ID    int     `json:"id"`
-	Name  string  `json:"name"`
-	Chats []*Chat `json:"chats"` // pointer item because item could be modified just after appending
-}
-
-func (s *Session) Info() model.Session {
-	return model.Session{
-		ID:   s.ID,
-		Name: s.Name,
-	}
-}
-
-func (s *Session) History() []openai.Message {
-	var ret []openai.Message
-	for _, chat := range s.Chats {
-		if !chat.Valid() {
-			continue
-		}
-		ret = append(ret, chat.HistoryRecords()...)
-	}
-	return ret
-}
-
-type Chat struct {
-	Input   string                 `json:"input"`
-	Created time.Time              `json:"created"`
-	Result  *openai.ChatCompletion `json:"result"`
-}
-
-func (c Chat) Valid() bool {
-	return c.Result != nil && len(c.Result.Choices) == 1 && c.Result.Choices[0].FinishReason == openai.FinishReasonStop
-}
-
-func (c Chat) HistoryRecords() []openai.Message {
-	var ret []openai.Message
-	ret = append(ret, openai.NewUserMessage(c.Input))
-	ret = append(ret, c.Result.Choices[0].Message.HistoryRecord())
-	return ret
-}
 
 type Service struct {
 	client *openai.Client
@@ -60,6 +22,7 @@ type Service struct {
 	mu     sync.Mutex       // guard key write action over data
 
 	sessionRepository *session.Repository
+	chatRepository    *chat.Repository
 }
 
 func (s *Service) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -89,12 +52,19 @@ func (s *Service) FindSessions(ctx context.Context) ([]*model.Session, *CodedErr
 	return ret, nil
 }
 
-func (s *Service) FindSessionByID(_ context.Context, id int) (*Session, *CodedError) {
-	ret, ok := s.data[id]
-	if !ok {
+func (s *Service) FindSessionByID(ctx context.Context, id int) (*Session, *CodedError) {
+	one, err := s.sessionRepository.Find(ctx, id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, NewCodedErrorf(http.StatusNotFound, "no session on id %v", id)
 	}
-	return ret, nil
+	if err != nil {
+		return nil, NewCodedError(http.StatusInternalServerError, err)
+	}
+	many, err := s.chatRepository.FindBySessionID(ctx, id)
+	if err != nil {
+		return nil, NewCodedError(http.StatusInternalServerError, err)
+	}
+	return NewSession(one, many), nil
 }
 
 type ChatRequest struct {
@@ -108,7 +78,7 @@ func (s *Service) Chat(ctx context.Context, id int, req *ChatRequest) (*openai.C
 		return nil, NewCodedErrorf(http.StatusNotFound, "no session on id to chat %v", id)
 	}
 
-	chat := &Chat{
+	chat := &openai.Chat{
 		Input:   req.Content,
 		Created: time.Now(),
 		Result:  nil,
@@ -131,6 +101,7 @@ func (s *Service) Chat(ctx context.Context, id int, req *ChatRequest) (*openai.C
 func New(
 	client *openai.Client,
 	sessionRepository *session.Repository,
+	chatRepository *chat.Repository,
 ) *Service {
 	ret := &Service{
 		client:            client,
@@ -138,6 +109,7 @@ func New(
 		data:              make(map[int]*Session),
 		mu:                sync.Mutex{},
 		sessionRepository: sessionRepository,
+		chatRepository:    chatRepository,
 	}
 
 	v1PostSession := NewJSONHandler(

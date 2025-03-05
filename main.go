@@ -1,6 +1,7 @@
 package main
 
 import (
+	"aiagent/clients/chat"
 	"aiagent/clients/openai"
 	"aiagent/clients/session"
 	"aiagent/service"
@@ -8,6 +9,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"gorm.io/driver/sqlite"
 	"log"
 	"net/http"
 	"net/url"
@@ -32,7 +34,17 @@ func main() {
 		basic()
 	case "server":
 		client := openai.New("https://api.deepseek.com", *DeepSeekAPIKey)
-		s := service.New(client, session.NewRepository())
+
+		d := sqlite.Open("db")
+		sr, err := session.NewRepository(d)
+		if err != nil {
+			log.Fatal(err)
+		}
+		cr, err := chat.NewRepository(d)
+		if err != nil {
+			log.Fatal(err)
+		}
+		s := service.New(client, sr, cr)
 		local, err := url.Parse(fmt.Sprintf("http://localhost:%d", *port))
 		if err != nil {
 			log.Fatal(err)

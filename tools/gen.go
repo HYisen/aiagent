@@ -12,5 +12,7 @@ func main() {
 		Mode:         gen.WithoutContext | gen.WithDefaultQuery | gen.WithQueryInterface,
 	})
 	g.ApplyBasic(model.Session{})
+
+	g.ApplyBasic(model.Chat{}, model.Result{})
 	g.Execute()
 }

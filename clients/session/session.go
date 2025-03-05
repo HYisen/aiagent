@@ -4,27 +4,29 @@ import (
 	"aiagent/clients/model"
 	"aiagent/clients/query"
 	"context"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"log"
 )
 
 type Repository struct {
 	q *query.Query
 }
 
-func NewRepository() *Repository {
-	db, err := gorm.Open(sqlite.Open("db"))
+func NewRepository(d gorm.Dialector) (*Repository, error) {
+	db, err := gorm.Open(d)
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 	return &Repository{
 		q: query.Use(db),
-	}
+	}, nil
 }
 
 func (r *Repository) FindAll(ctx context.Context) ([]*model.Session, error) {
 	return r.q.Session.WithContext(ctx).Find()
+}
+
+func (r *Repository) Find(ctx context.Context, id int) (*model.Session, error) {
+	return r.q.Session.WithContext(ctx).Where(r.q.Session.ID.Eq(id)).First()
 }
 
 func (r *Repository) Save(ctx context.Context, item model.Session) error {
