@@ -148,19 +148,19 @@ type ChunkChoice struct {
 }
 
 type Usage struct {
-	PromptTokens           int                    `json:"prompt_tokens"`
-	CompletionTokens       int                    `json:"completion_tokens"`
-	TotalTokens            int                    `json:"total_tokens"`
-	PromoteTokenDetails    PromoteTokenDetails    `json:"promote_token_details"`
-	CompletionTokenDetails CompletionTokenDetails `json:"completion_token_details"`
-	PromptCacheHitTokens   int                    `json:"prompt_cache_hit_tokens"`
-	PromptCacheMissTokens  int                    `json:"prompt_cache_miss_tokens"`
+	PromptTokens            int                     `json:"prompt_tokens"`
+	CompletionTokens        int                     `json:"completion_tokens"`
+	TotalTokens             int                     `json:"total_tokens"`
+	PromoteTokensDetails    PromoteTokensDetails    `json:"prompt_tokens_details"`
+	CompletionTokensDetails CompletionTokensDetails `json:"completion_tokens_details"`
+	PromptCacheHitTokens    int                     `json:"prompt_cache_hit_tokens"`
+	PromptCacheMissTokens   int                     `json:"prompt_cache_miss_tokens"`
 }
 
-type PromoteTokenDetails struct {
+type PromoteTokensDetails struct {
 	CachedTokens int `json:"cached_tokens"`
 }
 
-type CompletionTokenDetails struct {
+type CompletionTokensDetails struct {
 	ReasoningTokens int `json:"reasoning_tokens"`
 }
