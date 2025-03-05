@@ -2,6 +2,7 @@ package main
 
 import (
 	"aiagent/clients/openai"
+	"aiagent/clients/session"
 	"aiagent/service"
 	"bufio"
 	"context"
@@ -31,7 +32,7 @@ func main() {
 		basic()
 	case "server":
 		client := openai.New("https://api.deepseek.com", *DeepSeekAPIKey)
-		s := service.New(client)
+		s := service.New(client, session.NewRepository())
 		local, err := url.Parse(fmt.Sprintf("http://localhost:%d", *port))
 		if err != nil {
 			log.Fatal(err)

@@ -1,12 +1,13 @@
 package service
 
 import (
+	"aiagent/clients/model"
 	"aiagent/clients/openai"
+	"aiagent/clients/session"
 	"context"
 	"encoding/json"
 	"net/http"
 	"reflect"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -17,8 +18,8 @@ type Session struct {
 	Chats []*Chat `json:"chats"` // pointer item because item could be modified just after appending
 }
 
-func (s *Session) Info() SessionInfo {
-	return SessionInfo{
+func (s *Session) Info() model.Session {
+	return model.Session{
 		ID:   s.ID,
 		Name: s.Name,
 	}
@@ -57,33 +58,33 @@ type Service struct {
 	web    *Web
 	data   map[int]*Session // pointer item as easier to edit after fetch
 	mu     sync.Mutex       // guard key write action over data
+
+	sessionRepository *session.Repository
 }
 
 func (s *Service) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	s.web.ServeHTTP(writer, request)
 }
 
-func (s *Service) CreateSession(_ context.Context) (int, *CodedError) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	id := len(s.data) + 1000
-	s.data[id] = &Session{
-		ID:    id,
-		Name:  strconv.Itoa(id),
-		Chats: nil,
+func (s *Service) CreateSession(ctx context.Context) (int, *CodedError) {
+	name := time.Now().String()
+	if err := s.sessionRepository.Save(ctx, model.Session{
+		ID:   0,
+		Name: name,
+	}); err != nil {
+		return 0, nil
+	}
+	id, err := s.sessionRepository.FindLastIDByUserIDAndName(ctx, 0, name)
+	if err != nil {
+		return 0, NewCodedError(http.StatusInternalServerError, err)
 	}
 	return id, nil
 }
 
-type SessionInfo struct {
-	ID   int
-	Name string
-}
-
-func (s *Service) FindSessions(_ context.Context) ([]SessionInfo, *CodedError) {
-	var ret []SessionInfo
-	for _, session := range s.data {
-		ret = append(ret, session.Info())
+func (s *Service) FindSessions(ctx context.Context) ([]*model.Session, *CodedError) {
+	ret, err := s.sessionRepository.FindAll(ctx)
+	if err != nil {
+		return nil, NewCodedError(http.StatusInternalServerError, err)
 	}
 	return ret, nil
 }
@@ -129,12 +130,14 @@ func (s *Service) Chat(ctx context.Context, id int, req *ChatRequest) (*openai.C
 
 func New(
 	client *openai.Client,
+	sessionRepository *session.Repository,
 ) *Service {
 	ret := &Service{
-		client: client,
-		web:    nil,
-		data:   make(map[int]*Session),
-		mu:     sync.Mutex{},
+		client:            client,
+		web:               nil,
+		data:              make(map[int]*Session),
+		mu:                sync.Mutex{},
+		sessionRepository: sessionRepository,
 	}
 
 	v1PostSession := NewJSONHandler(
