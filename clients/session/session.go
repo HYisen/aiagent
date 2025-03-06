@@ -32,7 +32,11 @@ func (r *Repository) Find(ctx context.Context, id int) (*model.Session, error) {
 }
 
 func (r *Repository) FindWithChats(ctx context.Context, id int) (*model.Session, error) {
-	return r.q.Session.WithContext(ctx).Preload(r.q.Session.Chats).Where(r.q.Session.ID.Eq(id)).First()
+	return r.q.Session.WithContext(ctx).
+		Where(r.q.Session.ID.Eq(id)).
+		Preload(r.q.Session.Chats).
+		Preload(r.q.Session.Chats.Result).
+		First()
 }
 
 func (r *Repository) Save(ctx context.Context, item model.Session) error {

@@ -50,21 +50,15 @@ func (s *Service) FindSessions(ctx context.Context) ([]*model.Session, *CodedErr
 	return ret, nil
 }
 
-func (s *Service) FindSessionByID(ctx context.Context, id int) (*Session, *CodedError) {
-	//ret, err := s.sessionRepository.FindWithChats(ctx, id)
-	// could be, just need a bit more adaptor
-	one, err := s.sessionRepository.Find(ctx, id)
+func (s *Service) FindSessionByID(ctx context.Context, id int) (*model.Session, *CodedError) {
+	ret, err := s.sessionRepository.FindWithChats(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, NewCodedErrorf(http.StatusNotFound, "no session on id %v", id)
 	}
 	if err != nil {
 		return nil, NewCodedError(http.StatusInternalServerError, err)
 	}
-	many, err := s.chatRepository.FindBySessionID(ctx, id)
-	if err != nil {
-		return nil, NewCodedError(http.StatusInternalServerError, err)
-	}
-	return NewSession(one, many), nil
+	return ret, nil
 }
 
 type ChatRequest struct {
