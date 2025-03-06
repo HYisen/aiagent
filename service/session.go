@@ -29,14 +29,3 @@ func (s *Session) Info() model.Session {
 		Name: s.Name,
 	}
 }
-
-func (s *Session) History() []openai.Message {
-	var ret []openai.Message
-	for _, chat := range s.Chats {
-		if !chat.Valid() {
-			continue
-		}
-		ret = append(ret, chat.HistoryRecords()...)
-	}
-	return ret
-}

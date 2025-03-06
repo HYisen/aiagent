@@ -4,6 +4,8 @@ import (
 	"aiagent/clients/model"
 	"aiagent/clients/query"
 	"context"
+	"errors"
+	"fmt"
 	"gorm.io/gorm"
 )
 
@@ -29,6 +31,10 @@ func (r *Repository) Find(ctx context.Context, id int) (*model.Session, error) {
 	return r.q.Session.WithContext(ctx).Where(r.q.Session.ID.Eq(id)).First()
 }
 
+func (r *Repository) FindWithChats(ctx context.Context, id int) (*model.Session, error) {
+	return r.q.Session.WithContext(ctx).Preload(r.q.Session.Chats).Where(r.q.Session.ID.Eq(id)).First()
+}
+
 func (r *Repository) Save(ctx context.Context, item model.Session) error {
 	return r.q.Session.WithContext(ctx).Save(&item)
 }
@@ -43,4 +49,13 @@ func (r *Repository) FindLastIDByUserIDAndName(ctx context.Context, userID int, 
 		return 0, err
 	}
 	return last.ID, err
+}
+
+// AppendChat is unsupported yet.
+func (r *Repository) AppendChat(_ context.Context, _ int, _ *model.Chat) error {
+	// the implementation is dropped because upstream lacks feature of append with cascading associations
+	// ref https://github.com/go-gorm/gen/issues/1242
+	// in short, the flowing commented code would fail with nil chat.Result in DB
+	// return r.q.Session.Chats.WithContext(ctx).Model(&model.Session{ID: sessionID}).Append(chat)
+	return fmt.Errorf("AppendChat %w", errors.ErrUnsupported)
 }

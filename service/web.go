@@ -9,17 +9,15 @@ import (
 	"encoding/json"
 	"errors"
 	"gorm.io/gorm"
+	"log/slog"
 	"net/http"
 	"reflect"
-	"sync"
 	"time"
 )
 
 type Service struct {
 	client *openai.Client
 	web    *Web
-	data   map[int]*Session // pointer item as easier to edit after fetch
-	mu     sync.Mutex       // guard key write action over data
 
 	sessionRepository *session.Repository
 	chatRepository    *chat.Repository
@@ -53,6 +51,8 @@ func (s *Service) FindSessions(ctx context.Context) ([]*model.Session, *CodedErr
 }
 
 func (s *Service) FindSessionByID(ctx context.Context, id int) (*Session, *CodedError) {
+	//ret, err := s.sessionRepository.FindWithChats(ctx, id)
+	// could be, just need a bit more adaptor
 	one, err := s.sessionRepository.Find(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, NewCodedErrorf(http.StatusNotFound, "no session on id %v", id)
@@ -73,28 +73,42 @@ type ChatRequest struct {
 }
 
 func (s *Service) Chat(ctx context.Context, id int, req *ChatRequest) (*openai.ChatCompletion, *CodedError) {
-	session, ok := s.data[id]
-	if !ok {
-		return nil, NewCodedErrorf(http.StatusNotFound, "no session on id to chat %v", id)
+	ses, err := s.sessionRepository.FindWithChats(ctx, id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, NewCodedErrorf(http.StatusNotFound, "no session on id %v to chat", id)
+	}
+	if err != nil {
+		return nil, NewCodedError(http.StatusInternalServerError, err)
 	}
 
-	chat := &openai.Chat{
-		Input:   req.Content,
-		Created: time.Now(),
-		Result:  nil,
+	if err := s.chatRepository.Save(ctx, &model.Chat{
+		ID:         0,
+		SessionID:  ses.ID,
+		Input:      req.Content,
+		CreateTime: time.Now().UnixMilli(),
+		Result:     nil,
+	}); err != nil {
+		return nil, NewCodedError(http.StatusInternalServerError, err)
 	}
-	session.Chats = append(session.Chats, chat)
-	// session.History() would skip the one just generated as Valid() does not meet because of nil Result,
-	// so it's correct to append again to generate the history to be used in Request.
+
+	neo, err := s.chatRepository.FindLastBySessionID(ctx, ses.ID)
+	if err != nil {
+		return nil, NewCodedError(http.StatusInternalServerError, err)
+	}
+
 	chatCompletion, err := s.client.OneShot(ctx, openai.Request{
-		Messages: append(session.History(), openai.NewUserMessage(req.Content)),
+		Messages: append(ses.History(), openai.NewUserMessage(req.Content)),
 		Model:    req.Model,
 	})
 	if err != nil {
 		return nil, NewCodedErrorf(http.StatusInternalServerError, "upstream: %v", err.Error())
 	}
-	chat.Result = chatCompletion
+	neo.Result = model.NewResult(chatCompletion)
 
+	if err := s.chatRepository.Save(ctx, neo); err != nil {
+		slog.Warn("can not append record", neo)
+		return nil, NewCodedError(http.StatusInternalServerError, err)
+	}
 	return chatCompletion, nil
 }
 
@@ -106,8 +120,6 @@ func New(
 	ret := &Service{
 		client:            client,
 		web:               nil,
-		data:              make(map[int]*Session),
-		mu:                sync.Mutex{},
 		sessionRepository: sessionRepository,
 		chatRepository:    chatRepository,
 	}
