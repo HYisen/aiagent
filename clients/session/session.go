@@ -13,11 +13,7 @@ type Repository struct {
 	q *query.Query
 }
 
-func NewRepository(d gorm.Dialector) (*Repository, error) {
-	db, err := gorm.Open(d)
-	if err != nil {
-		return nil, err
-	}
+func NewRepository(db *gorm.DB) (*Repository, error) {
 	return &Repository{
 		q: query.Use(db),
 	}, nil
