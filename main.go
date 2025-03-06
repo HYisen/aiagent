@@ -33,29 +33,32 @@ func main() {
 	case "SmokeTest":
 		basic()
 	case "server":
-		client := openai.New("https://api.deepseek.com", *DeepSeekAPIKey)
-
-		d := sqlite.Open("db")
-		sr, err := session.NewRepository(d)
-		if err != nil {
-			log.Fatal(err)
-		}
-		cr, err := chat.NewRepository(d)
-		if err != nil {
-			log.Fatal(err)
-		}
-		s := service.New(client, sr, cr)
-		local, err := url.Parse(fmt.Sprintf("http://localhost:%d", *port))
-		if err != nil {
-			log.Fatal(err)
-		}
-		service.SetTimeout(30 * time.Second) // LLM is relative slow.
-		err = http.ListenAndServe(local.Host, s)
-		if err != nil {
-			log.Fatal(err)
-		}
+		server()
 	default:
 		log.Fatalf("unsupported mode %s", *mode)
+	}
+}
+
+func server() {
+	client := openai.New("https://api.deepseek.com", *DeepSeekAPIKey)
+	d := sqlite.Open("db")
+	sr, err := session.NewRepository(d)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cr, err := chat.NewRepository(d)
+	if err != nil {
+		log.Fatal(err)
+	}
+	s := service.New(client, sr, cr)
+	local, err := url.Parse(fmt.Sprintf("http://localhost:%d", *port))
+	if err != nil {
+		log.Fatal(err)
+	}
+	service.SetTimeout(30 * time.Second) // LLM is relative slow.
+	err = http.ListenAndServe(local.Host, s)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 
