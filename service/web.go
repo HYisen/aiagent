@@ -100,7 +100,7 @@ func (s *Service) Chat(ctx context.Context, id int, req *ChatRequest) (*openai.C
 	neo.Result = model.NewResult(chatCompletion)
 
 	if err := s.chatRepository.Save(ctx, neo); err != nil {
-		slog.Warn("can not append record", "chat", neo)
+		slog.Error("can not append record", "chat", neo)
 		return nil, NewCodedError(http.StatusInternalServerError, err)
 	}
 	return chatCompletion, nil
