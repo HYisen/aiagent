@@ -22,17 +22,5 @@ func NewRepository(d gorm.Dialector) (*Repository, error) {
 }
 
 func (r *Repository) FindBySessionID(ctx context.Context, sessionID int) ([]*model.Chat, error) {
-	// It's this the right way to use gen Associations?
-	chats, err := r.q.Chat.WithContext(ctx).Where(r.q.Chat.SessionID.Eq(sessionID)).Find()
-	if err != nil {
-		return nil, err
-	}
-	for _, chat := range chats {
-		result, err := r.q.Chat.Result.WithContext(ctx).Model(&model.Chat{ID: chat.ID}).Find()
-		if err != nil {
-			return nil, err
-		}
-		chat.Result = result
-	}
-	return chats, err
+	return r.q.Chat.WithContext(ctx).Preload(r.q.Chat.Result).Where(r.q.Chat.SessionID.Eq(sessionID)).Find()
 }
