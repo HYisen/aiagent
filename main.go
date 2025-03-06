@@ -7,10 +7,13 @@ import (
 	"aiagent/service"
 	"bufio"
 	"context"
+	_ "embed"
 	"flag"
 	"fmt"
 	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -21,7 +24,7 @@ import (
 
 var DeepSeekAPIKey = flag.String("DeepSeekAPIKey", "this_is_a_secret", "API Key from platform.deepseek.com/api_keys")
 
-var mode = flag.String("mode", "server", "app mode from SmokeTest|REPL|server")
+var mode = flag.String("mode", "server", "app mode from SmokeTest|REPL|server|migrate")
 
 var port = flag.Int("port", 8640, "where server mode serve on localhost")
 
@@ -34,19 +37,50 @@ func main() {
 		basic()
 	case "server":
 		server()
+	case "migrate":
+		migrate()
 	default:
 		log.Fatalf("unsupported mode %s", *mode)
 	}
 }
 
-func server() {
-	client := openai.New("https://api.deepseek.com", *DeepSeekAPIKey)
-	d := sqlite.Open("db")
-	sr, err := session.NewRepository(d)
+const sqliteDatabaseFilename = "db"
+
+//go:embed docs/ddl.sql
+var ddlSQL string
+
+func migrate() {
+	_, err := os.Stat(sqliteDatabaseFilename)
+	if err == nil {
+		log.Fatalf("SQLite file [%s] already exists, backup and remove it first.", sqliteDatabaseFilename)
+	}
+
+	slog.Info("create sqlite database", "path", sqliteDatabaseFilename)
+	db, err := gorm.Open(sqlite.Open(sqliteDatabaseFilename))
 	if err != nil {
 		log.Fatal(err)
 	}
-	cr, err := chat.NewRepository(d)
+
+	// migrate from go source code works, but I choose to leave it in SQL, making it more friendly to developers.
+	// following code lacks index creation, but shall work in a lower level.
+	// db.AutoMigrate(&model.Chat{}, &model.Session{}, &model.Result{})
+
+	if err := db.Exec(ddlSQL).Error; err != nil {
+		log.Fatal(err)
+	}
+}
+
+func server() {
+	client := openai.New("https://api.deepseek.com", *DeepSeekAPIKey)
+	db, err := gorm.Open(sqlite.Open(sqliteDatabaseFilename))
+	if err != nil {
+		log.Fatal(err)
+	}
+	sr, err := session.NewRepository(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cr, err := chat.NewRepository(db)
 	if err != nil {
 		log.Fatal(err)
 	}

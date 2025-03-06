@@ -1,5 +1,4 @@
-DROP TABLE sessions;
-
+-- KEEP SYNC with ddl.sql
 CREATE TABLE sessions
 (
     id      INTEGER PRIMARY KEY ASC,
@@ -7,6 +6,7 @@ CREATE TABLE sessions
     user_id INTEGER
 ) STRICT;
 
+-- KEEP SYNC with ddl.sql
 CREATE INDEX idx_sessions_user_id_id ON sessions (user_id, id);
 
 INSERT INTO sessions
