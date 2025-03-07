@@ -85,6 +85,7 @@ func (c *Client) OneShotStream(
 	defer CloseAndWarnIfFail(body)
 
 	scanner := bufio.NewScanner(body)
+	scanner.Split(ScanDoubleNewLine)
 	var done bool
 	// Initiate choices with len 1 as Aggregate does not create, don't ask me how I find it vital.
 	aggregated = &ChatCompletion{Choices: make([]Choice, 1)}
@@ -93,19 +94,16 @@ func (c *Client) OneShotStream(
 		// Blaming the done control, it's pull 5 and leave extra 2 CC in place,
 		// which helps little. In the end I decided to leave the complexity here.
 
-		// The SSE date line and done check never works while I am developing their handler.
+		// The prefix data: and done check never works while I am developing their handler.
 		// Comparing to len(choices), they are more likely to change on the server side.
 		// Maybe I shall make them warnings once triggered,
 		// implementing best-effort strategy in the cost of sensitivity.
 
 		line := scanner.Text()
 		// ref https://api-docs.deepseek.com/faq#why-are-empty-lines-continuously-returned-when-calling-the-api
+		// The ignore behaviour is also required by SSE, while other cases HasPrefix : are not respected.
+		// ref https://html.spec.whatwg.org/multipage/server-sent-events.html#parsing-an-event-stream
 		if line == ": keep-alive" {
-			continue
-		}
-		// I also witness blank line in stream mode. Now that server has sent it,
-		// we just ignore it rather than somehow yield gracefully like exponential backoff.
-		if line == "" {
 			continue
 		}
 
@@ -133,4 +131,33 @@ func (c *Client) OneShotStream(
 		return nil, err
 	}
 	return aggregated, nil
+}
+
+// ScanDoubleNewLine is a split function for a [Scanner] that returns each event of text/event-stream,
+// stripped of any trailing end-of-event marker. The returned line may be empty.
+// The end-of-event marker is two newline. In regular expression notation, it is `\n\n`.
+// The last non-empty blob of input will be returned even if it has no end-of-event marker.
+//
+// The end-of-event marker is actually an end-of-line marker of a normal line and an empty line which
+// indicates dispatch the event in SSE.
+//
+// The function is copied from bufio.ScanLines and then modified. The differences are
+// 1. no dropCR as it's LF rather than CRLF or anything else on the server side at present.
+// 2. find index of "\n\n" rather than "\n", and return advance matches.
+//
+// ref https://html.spec.whatwg.org/multipage/server-sent-events.html#server-sent-events
+func ScanDoubleNewLine(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if atEOF && len(data) == 0 {
+		return 0, nil, nil
+	}
+	if i := bytes.IndexAny(data, "\n\n"); i >= 0 {
+		// We have a full newline-terminated line.
+		return i + 2, data[0:i], nil
+	}
+	// If we're at EOF, we have a final, non-terminated line. Return it.
+	if atEOF {
+		return len(data), data, nil
+	}
+	// Request more data.
+	return 0, nil, nil
 }
