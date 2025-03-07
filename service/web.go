@@ -168,7 +168,7 @@ func New(
 	}
 
 	ret.web = NewWeb(
-		true,
+		false,
 		v1PostSession,
 		v1GetSessions,
 		v1GetSessionByID,
