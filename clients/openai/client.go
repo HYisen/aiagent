@@ -70,6 +70,10 @@ func CloseAndWarnIfFail(c io.Closer) {
 	}
 }
 
+// OneShotStream use ch as chunk output, and will close it when it's done.
+// It uses one parameter as an output, because aggregated generates slowly.
+// If put ch in output, considering first chunk may be tens of seconds earlier than aggregated,
+// users would have to aggregate themselves.
 func (c *Client) OneShotStream(
 	ctx context.Context,
 	request Request,
@@ -83,6 +87,7 @@ func (c *Client) OneShotStream(
 		return nil, err
 	}
 	defer CloseAndWarnIfFail(body)
+	defer close(ch)
 
 	scanner := bufio.NewScanner(body)
 	scanner.Split(ScanDoubleNewLine)
