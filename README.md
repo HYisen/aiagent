@@ -8,7 +8,7 @@ A server side app that provide HTTP interface to access LLM service for me.
 
 ```bash
 # gen code are not included in git, re-generate them
-go run tools/gen.go
+go run tools/gen/main.go
 
 # check docs/*.sql and do the necessary DDL to setup DB
 # check Repository code to know which DataBase
