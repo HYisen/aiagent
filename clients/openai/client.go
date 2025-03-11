@@ -140,7 +140,7 @@ func (c *Client) OneShotStreamFast(
 		if err := translateStream(b, o); err != nil {
 			// Consider the outer function should have returned,
 			// my best effort would be log error here.
-			slog.Warn("translateStream", err, err)
+			slog.Warn("translateStream", "err", err)
 		}
 	}(body, ch)
 
