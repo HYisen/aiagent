@@ -44,4 +44,13 @@ POST {{host}}/v1/sessions/{{id}}/chat
 POST {{host}}/v1/sessions/404/chat
 
 
+### Chat Stream
+
+POST {{host}}/v1/sessions/{{id}}/chat?stream=true
+
+{
+  "content": "say this is a test",
+  "model": "deepseek-reasoner"
+}
+
 ###
