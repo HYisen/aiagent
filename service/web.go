@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/hyisen/wf"
 	"gorm.io/gorm"
 	"log/slog"
 	"net/http"
@@ -17,7 +18,7 @@ import (
 
 type Service struct {
 	client *openai.Client
-	web    *Web
+	web    *wf.Web
 
 	sessionRepository *session.Repository
 	chatRepository    *chat.Repository
@@ -27,7 +28,7 @@ func (s *Service) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	s.web.ServeHTTP(writer, request)
 }
 
-func (s *Service) CreateSession(ctx context.Context) (int, *CodedError) {
+func (s *Service) CreateSession(ctx context.Context) (int, *wf.CodedError) {
 	name := time.Now().String()
 	if err := s.sessionRepository.Save(ctx, model.Session{
 		ID:   0,
@@ -37,26 +38,26 @@ func (s *Service) CreateSession(ctx context.Context) (int, *CodedError) {
 	}
 	id, err := s.sessionRepository.FindLastIDByUserIDAndName(ctx, 0, name)
 	if err != nil {
-		return 0, NewCodedError(http.StatusInternalServerError, err)
+		return 0, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
 	return id, nil
 }
 
-func (s *Service) FindSessions(ctx context.Context) ([]*model.Session, *CodedError) {
+func (s *Service) FindSessions(ctx context.Context) ([]*model.Session, *wf.CodedError) {
 	ret, err := s.sessionRepository.FindAll(ctx)
 	if err != nil {
-		return nil, NewCodedError(http.StatusInternalServerError, err)
+		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
 	return ret, nil
 }
 
-func (s *Service) FindSessionByID(ctx context.Context, id int) (*model.Session, *CodedError) {
+func (s *Service) FindSessionByID(ctx context.Context, id int) (*model.Session, *wf.CodedError) {
 	ret, err := s.sessionRepository.FindWithChats(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, NewCodedErrorf(http.StatusNotFound, "no session on id %v", id)
+		return nil, wf.NewCodedErrorf(http.StatusNotFound, "no session on id %v", id)
 	}
 	if err != nil {
-		return nil, NewCodedError(http.StatusInternalServerError, err)
+		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
 	return ret, nil
 }
@@ -66,13 +67,13 @@ type ChatRequest struct {
 	Model   string `json:"model"`
 }
 
-func (s *Service) Chat(ctx context.Context, id int, req *ChatRequest) (*openai.ChatCompletion, *CodedError) {
+func (s *Service) Chat(ctx context.Context, id int, req *ChatRequest) (*openai.ChatCompletion, *wf.CodedError) {
 	ses, err := s.sessionRepository.FindWithChats(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, NewCodedErrorf(http.StatusNotFound, "no session on id %v to chat", id)
+		return nil, wf.NewCodedErrorf(http.StatusNotFound, "no session on id %v to chat", id)
 	}
 	if err != nil {
-		return nil, NewCodedError(http.StatusInternalServerError, err)
+		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
 
 	if err := s.chatRepository.Save(ctx, &model.Chat{
@@ -82,12 +83,12 @@ func (s *Service) Chat(ctx context.Context, id int, req *ChatRequest) (*openai.C
 		CreateTime: time.Now().UnixMilli(),
 		Result:     nil,
 	}); err != nil {
-		return nil, NewCodedError(http.StatusInternalServerError, err)
+		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
 
 	neo, err := s.chatRepository.FindLastBySessionID(ctx, ses.ID)
 	if err != nil {
-		return nil, NewCodedError(http.StatusInternalServerError, err)
+		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
 
 	chatCompletion, err := s.client.OneShot(ctx, openai.Request{
@@ -95,13 +96,13 @@ func (s *Service) Chat(ctx context.Context, id int, req *ChatRequest) (*openai.C
 		Model:    req.Model,
 	})
 	if err != nil {
-		return nil, NewCodedErrorf(http.StatusInternalServerError, "upstream: %v", err.Error())
+		return nil, wf.NewCodedErrorf(http.StatusInternalServerError, "upstream: %v", err.Error())
 	}
 	neo.Result = model.NewResult(chatCompletion)
 
 	if err := s.chatRepository.Save(ctx, neo); err != nil {
 		slog.Error("can not append record", "chat", neo)
-		return nil, NewCodedError(http.StatusInternalServerError, err)
+		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
 	return chatCompletion, nil
 }
@@ -118,38 +119,38 @@ func New(
 		chatRepository:    chatRepository,
 	}
 
-	v1PostSession := NewJSONHandler(
-		Exact(http.MethodPost, "/v1/sessions"),
-		reflect.TypeOf(Empty{}),
-		func(ctx context.Context, req any) (rsp any, codedError *CodedError) {
+	v1PostSession := wf.NewJSONHandler(
+		wf.Exact(http.MethodPost, "/v1/sessions"),
+		reflect.TypeOf(wf.Empty{}),
+		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
 			return ret.CreateSession(ctx)
 		},
 	)
 
-	v1GetSessions := NewJSONHandler(
-		Exact(http.MethodGet, "/v1/sessions"),
-		reflect.TypeOf(Empty{}),
-		func(ctx context.Context, req any) (rsp any, codedError *CodedError) {
+	v1GetSessions := wf.NewJSONHandler(
+		wf.Exact(http.MethodGet, "/v1/sessions"),
+		reflect.TypeOf(wf.Empty{}),
+		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
 			return ret.FindSessions(ctx)
 		},
 	)
 
-	v1GetSessionByID := &ClosureHandler{
-		Matcher: ResourceWithID(http.MethodGet, "/v1/sessions/", ""),
-		Parser:  PathIDParser(""),
-		Handler: func(ctx context.Context, req any) (rsp any, codedError *CodedError) {
+	v1GetSessionByID := wf.NewClosureHandler(
+		wf.ResourceWithID(http.MethodGet, "/v1/sessions/", ""),
+		wf.PathIDParser(""),
+		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
 			return ret.FindSessionByID(ctx, req.(int))
 		},
-		Formatter:   json.Marshal,
-		ContentType: JSONContentType,
-	}
+		json.Marshal,
+		wf.JSONContentType,
+	)
 
 	v1PostSessionChatPathSuffix := "/chat"
-	v1PostSessionChatPathIDParser := PathIDParser(v1PostSessionChatPathSuffix)
-	v1PostSessionChatPayloadParser := JSONParser(reflect.TypeOf(ChatRequest{}))
-	v1PostSessionChat := &ClosureHandler{
-		Matcher: ResourceWithID(http.MethodPost, "/v1/sessions/", v1PostSessionChatPathSuffix),
-		Parser: func(data []byte, path string) (any, error) {
+	v1PostSessionChatPathIDParser := wf.PathIDParser(v1PostSessionChatPathSuffix)
+	v1PostSessionChatPayloadParser := wf.JSONParser(reflect.TypeOf(ChatRequest{}))
+	v1PostSessionChat := wf.NewClosureHandler(
+		wf.ResourceWithID(http.MethodPost, "/v1/sessions/", v1PostSessionChatPathSuffix),
+		func(data []byte, path string) (any, error) {
 			id, err := v1PostSessionChatPathIDParser(nil, path)
 			if err != nil {
 				return nil, err
@@ -160,14 +161,14 @@ func New(
 			}
 			return []any{id, payload}, nil
 		},
-		Handler: func(ctx context.Context, req any) (rsp any, codedError *CodedError) {
+		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
 			return ret.Chat(ctx, req.([]any)[0].(int), req.([]any)[1].(*ChatRequest))
 		},
-		Formatter:   json.Marshal,
-		ContentType: JSONContentType,
-	}
+		json.Marshal,
+		wf.JSONContentType,
+	)
 
-	ret.web = NewWeb(
+	ret.web = wf.NewWeb(
 		false,
 		v1PostSession,
 		v1GetSessions,

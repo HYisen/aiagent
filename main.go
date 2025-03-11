@@ -10,6 +10,7 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
+	"github.com/hyisen/wf"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"log"
@@ -89,7 +90,7 @@ func server() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	service.SetTimeout(30 * time.Second) // LLM is relative slow.
+	wf.SetTimeout(30 * time.Second) // LLM is relative slow.
 	err = http.ListenAndServe(local.Host, s)
 	if err != nil {
 		log.Fatal(err)
