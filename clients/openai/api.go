@@ -74,6 +74,14 @@ type ChatCompletion struct {
 	Usage   Usage    `json:"usage"`
 }
 
+// NewAggregator creates an *ChatCompletion for aggregation of ChatCompletionChunk.
+// Itself would become a complete ChatCompletion once every ChatCompletionChunk in stream mode is aggregated.
+func NewAggregator() *ChatCompletion {
+	// Initiate choices with len 1 as Aggregate does not create, don't ask me how I find it vital.
+	ret := &ChatCompletion{Choices: make([]Choice, 1)}
+	return ret
+}
+
 func (cc *ChatCompletion) Aggregate(chunk ChatCompletionChunk) {
 	// As I observed, ChatCompletionBase among chunks always exists and are identical;
 	// therefore, only copy once on empty and use one filed as the canary.

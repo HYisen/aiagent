@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 )
@@ -70,30 +71,16 @@ func CloseAndWarnIfFail(c io.Closer) {
 	}
 }
 
-// OneShotStream use ch as chunk output, and will close it when it's done.
-// It uses one parameter as an output, because aggregated generates slowly.
-// If put ch in output, considering first chunk may be tens of seconds earlier than aggregated,
-// users would have to aggregate themselves.
-func (c *Client) OneShotStream(
-	ctx context.Context,
-	request Request,
-	ch chan<- ChatCompletionChunk,
-) (aggregated *ChatCompletion, err error) {
-	body, err := c.chat(ctx, RequestWhole{
-		Request: request,
-		Stream:  true,
-	})
-	if err != nil {
-		return nil, err
-	}
+// translateStream read and parse message body and output to channel.
+// Once it's done, both body and output would be closed.
+func translateStream(body io.ReadCloser, output chan<- ChatCompletionChunk) error {
 	defer CloseAndWarnIfFail(body)
-	defer close(ch)
+	defer close(output)
 
 	scanner := bufio.NewScanner(body)
 	scanner.Split(ScanDoubleNewLine)
 	var done bool
-	// Initiate choices with len 1 as Aggregate does not create, don't ask me how I find it vital.
-	aggregated = &ChatCompletion{Choices: make([]Choice, 1)}
+
 	for scanner.Scan() {
 		// I have tried pulling parseTrunkData to lower Cyclomatic Complexity.
 		// Blaming the done control, it's pull 5 and leave extra 2 CC in place,
@@ -113,12 +100,12 @@ func (c *Client) OneShotStream(
 		}
 
 		if done {
-			return nil, fmt.Errorf("extra line after [DONE] %q", line)
+			return fmt.Errorf("extra line after [DONE] %q", line)
 		}
 
 		after, found := strings.CutPrefix(line, "data: ")
 		if !found {
-			return nil, fmt.Errorf("bad format SSE data line %q", line)
+			return fmt.Errorf("bad format SSE data line %q", line)
 		}
 		if after == "[DONE]" {
 			done = true
@@ -127,12 +114,66 @@ func (c *Client) OneShotStream(
 
 		var response ChunkResponse
 		if err := json.Unmarshal([]byte(after), &response); err != nil {
-			return nil, err
+			return err
 		}
-		ch <- response.ChatCompletionChunk
-		aggregated.Aggregate(response.ChatCompletionChunk)
+		output <- response.ChatCompletionChunk
 	}
-	if err := scanner.Err(); err != nil {
+	return scanner.Err()
+}
+
+// OneShotStreamFast outputs in the channel returned, and will close it once it's done.
+// The choice to put output channel in parameters and return aggregated is OneShotStream.
+func (c *Client) OneShotStreamFast(
+	ctx context.Context,
+	request Request,
+) (<-chan ChatCompletionChunk, error) {
+	body, err := c.chat(ctx, RequestWhole{
+		Request: request,
+		Stream:  true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan ChatCompletionChunk)
+	go func(b io.ReadCloser, o chan<- ChatCompletionChunk) {
+		if err := translateStream(b, o); err != nil {
+			// Consider the outer function should have returned,
+			// my best effort would be log error here.
+			slog.Warn("translateStream", err, err)
+		}
+	}(body, ch)
+
+	return ch, nil
+}
+
+// OneShotStream use ch as chunk output, and will close it when it's done.
+// It uses one parameter as an output, because aggregated generates slowly.
+// If put ch in output, considering first chunk may be tens of seconds earlier than aggregated,
+// users would have to aggregate themselves. And that is OneShotStreamFast.
+func (c *Client) OneShotStream(
+	ctx context.Context,
+	request Request,
+	ch chan<- ChatCompletionChunk,
+) (aggregated *ChatCompletion, err error) {
+	body, err := c.chat(ctx, RequestWhole{
+		Request: request,
+		Stream:  true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	aggregated = NewAggregator()
+	input := make(chan ChatCompletionChunk)
+	go func(a *ChatCompletion, i <-chan ChatCompletionChunk, o chan<- ChatCompletionChunk) {
+		defer close(o)
+		for chunk := range i {
+			a.Aggregate(chunk)
+			o <- chunk
+		}
+	}(aggregated, input, ch)
+	if err := translateStream(body, input); err != nil {
 		return nil, err
 	}
 	return aggregated, nil
