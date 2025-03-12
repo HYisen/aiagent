@@ -36,7 +36,7 @@ func (s *Service) CreateSession(ctx context.Context) (int, *wf.CodedError) {
 		ID:   0,
 		Name: name,
 	}); err != nil {
-		return 0, nil
+		return 0, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
 	id, err := s.sessionRepository.FindLastIDByUserIDAndName(ctx, 0, name)
 	if err != nil {
@@ -149,51 +149,60 @@ func (s *Service) translateAggregateSave(
 ) {
 	defer close(down)
 	aggregator := openai.NewAggregator()
-	var stage int // 0head 1ReasoningContent 2Content 3tail
-	for chunk := range up {
-		aggregator.Aggregate(chunk)
-		switch stage {
-		case 0:
-			stage++
-			down <- NewJSONMessageEvent("head", chunk.ChatCompletionBase)
-			down <- wf.MessageEvent{
-				TypeOptional: "role",
-				Lines:        []string{chunk.Choices[0].Delta.Role},
-			}
-		case 1:
-			if chunk.Choices[0].Delta.Content == "" {
-				down <- NewMultiLineMessageEvent(chunk.Choices[0].Delta.ReasoningContent)
-			} else {
-				stage++
-				down <- wf.MessageEvent{
-					TypeOptional: "cotEnd",
-					Lines:        nil,
+	var stage int
+
+	for {
+		select {
+		case <-ctx.Done():
+			slog.Warn("stream interrupted", "error", ctx.Err())
+			return
+		case chunk, ok := <-up:
+			if !ok {
+				if stage != 3 {
+					slog.Error("end with unexpected status", "stage", stage)
 				}
-				down <- NewMultiLineMessageEvent(chunk.Choices[0].Delta.Content)
-			}
-		case 2:
-			if chunk.Usage == nil {
-				down <- NewMultiLineMessageEvent(chunk.Choices[0].Delta.Content)
-			} else {
-				stage++
-				down <- wf.MessageEvent{
-					TypeOptional: "finish",
-					Lines:        []string{*chunk.Choices[0].FinishReason},
+				neo.Result = model.NewResult(aggregator)
+				if err := s.chatRepository.Save(ctx, neo); err != nil {
+					slog.Error("can not append record in stream mode", "chat", neo)
+					down <- NewErrorMessageEvent(err)
 				}
-				down <- NewJSONMessageEvent("usage", chunk.Usage)
+				return
+			}
+			aggregator.Aggregate(chunk)
+			switch stage {
+			case 0:
+				stage++
+				down <- NewJSONMessageEvent("head", chunk.ChatCompletionBase)
+				down <- wf.MessageEvent{
+					TypeOptional: "role",
+					Lines:        []string{chunk.Choices[0].Delta.Role},
+				}
+			case 1:
+				if chunk.Choices[0].Delta.Content == "" {
+					down <- NewMultiLineMessageEvent(chunk.Choices[0].Delta.ReasoningContent)
+				} else {
+					stage++
+					down <- wf.MessageEvent{
+						TypeOptional: "cotEnd",
+						Lines:        nil,
+					}
+					down <- NewMultiLineMessageEvent(chunk.Choices[0].Delta.Content)
+				}
+			case 2:
+				if chunk.Usage == nil {
+					down <- NewMultiLineMessageEvent(chunk.Choices[0].Delta.Content)
+				} else {
+					stage++
+					down <- wf.MessageEvent{
+						TypeOptional: "finish",
+						Lines:        []string{*chunk.Choices[0].FinishReason},
+					}
+					down <- NewJSONMessageEvent("usage", chunk.Usage)
+				}
 			}
 		}
 	}
-	if stage != 3 {
-		slog.Error("end with unexpected status", "stage", stage)
-	}
-	neo.Result = model.NewResult(aggregator)
-	if err := s.chatRepository.Save(ctx, neo); err != nil {
-		slog.Error("can not append record in stream mode", "chat", neo)
-		down <- NewErrorMessageEvent(err)
-	}
 }
-
 func NewMultiLineMessageEvent(passage string) wf.MessageEvent {
 	return wf.MessageEvent{
 		TypeOptional: "",
