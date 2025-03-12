@@ -88,7 +88,7 @@ func server() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	wf.SetTimeout(30 * time.Second) // LLM is relative slow.
+	wf.SetTimeout(60 * time.Second) // LLM is relative slow. 30 seconds not enough as timeout happened in normal stream.
 	err = http.ListenAndServe(local.Host, s)
 	if err != nil {
 		log.Fatal(err)
