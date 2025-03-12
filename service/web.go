@@ -101,7 +101,7 @@ func (s *Service) prepareChat(ctx context.Context, id int, req *ChatRequest) (
 		return nil, nil, wf.NewCodedErrorf(http.StatusNotFound, "no session on id %v to chat", id)
 	}
 	if e != nil {
-		return nil, nil, wf.NewCodedError(http.StatusInternalServerError, err)
+		return nil, nil, wf.NewCodedError(http.StatusInternalServerError, e)
 	}
 
 	if err := s.chatRepository.Save(ctx, &model.Chat{
@@ -116,7 +116,7 @@ func (s *Service) prepareChat(ctx context.Context, id int, req *ChatRequest) (
 
 	neo, e = s.chatRepository.FindLastBySessionID(ctx, ses.ID)
 	if e != nil {
-		return nil, nil, wf.NewCodedError(http.StatusInternalServerError, err)
+		return nil, nil, wf.NewCodedError(http.StatusInternalServerError, e)
 	}
 
 	return ses, neo, nil
