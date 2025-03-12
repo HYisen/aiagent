@@ -98,6 +98,9 @@ func (c *Client) CreateSession() (id int, error error) {
 		return 0, err
 	}
 	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
 	num, err := strconv.Atoi(string(data))
 	if err != nil {
 		return 0, err
