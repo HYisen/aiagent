@@ -55,8 +55,7 @@ func NewPrintWordChannel() chan<- openai.ChatCompletionChunk {
 			}
 			if !cotFinished && delta.ReasoningContent == "" && delta.Content != "" {
 				cotFinished = true
-				separation := strings.Repeat("-", 8)
-				fmt.Print("\n\n" + separation + " CoT END " + separation + "\n\n")
+				fmt.Print(COTEndMessage())
 			}
 			if delta.Content != "" {
 				fmt.Print(delta.Content)
@@ -72,6 +71,11 @@ func NewPrintWordChannel() chan<- openai.ChatCompletionChunk {
 		log.Printf("end of PrintWordChannel, total useful trunk %d\n", count)
 	}(ret)
 	return ret
+}
+
+func COTEndMessage() string {
+	separation := strings.Repeat("-", 8)
+	return "\n\n" + separation + " CoT END " + separation + "\n\n"
 }
 
 type Controller struct {
