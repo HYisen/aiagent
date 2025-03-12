@@ -32,10 +32,17 @@ type Message struct {
 	ReasoningContent string `json:"reasoning_content,omitempty"`
 }
 
-// AsHistoryRecord on item in Response converts it to Request.
+func NewUserMessage(content string) Message {
+	return Message{
+		Role:    "user",
+		Content: content,
+	}
+}
+
+// HistoryRecord on item in Response converts it to Request.
 // At present, it drops CoT field as the requirement from
 // https://api-docs.deepseek.com/guides/reasoning_model#multi-round-conversation
-func (m Message) AsHistoryRecord() Message {
+func (m Message) HistoryRecord() Message {
 	return Message{
 		Role:             m.Role,
 		Content:          m.Content,
@@ -65,6 +72,14 @@ type ChatCompletion struct {
 	ChatCompletionBase
 	Choices []Choice `json:"choices"`
 	Usage   Usage    `json:"usage"`
+}
+
+// NewAggregator creates an *ChatCompletion for aggregation of ChatCompletionChunk.
+// Itself would become a complete ChatCompletion once every ChatCompletionChunk in stream mode is aggregated.
+func NewAggregator() *ChatCompletion {
+	// Initiate choices with len 1 as Aggregate does not create, don't ask me how I find it vital.
+	ret := &ChatCompletion{Choices: make([]Choice, 1)}
+	return ret
 }
 
 func (cc *ChatCompletion) Aggregate(chunk ChatCompletionChunk) {
@@ -141,19 +156,19 @@ type ChunkChoice struct {
 }
 
 type Usage struct {
-	PromptTokens           int                    `json:"prompt_tokens"`
-	CompletionTokens       int                    `json:"completion_tokens"`
-	TotalTokens            int                    `json:"total_tokens"`
-	PromoteTokenDetails    PromoteTokenDetails    `json:"promote_token_details"`
-	CompletionTokenDetails CompletionTokenDetails `json:"completion_token_details"`
-	PromptCacheHitTokens   int                    `json:"prompt_cache_hit_tokens"`
-	PromptCacheMissTokens  int                    `json:"prompt_cache_miss_tokens"`
+	PromptTokens            int                     `json:"prompt_tokens"`
+	CompletionTokens        int                     `json:"completion_tokens"`
+	TotalTokens             int                     `json:"total_tokens"`
+	PromoteTokensDetails    PromoteTokensDetails    `json:"prompt_tokens_details"`
+	CompletionTokensDetails CompletionTokensDetails `json:"completion_tokens_details"`
+	PromptCacheHitTokens    int                     `json:"prompt_cache_hit_tokens"`
+	PromptCacheMissTokens   int                     `json:"prompt_cache_miss_tokens"`
 }
 
-type PromoteTokenDetails struct {
+type PromoteTokensDetails struct {
 	CachedTokens int `json:"cached_tokens"`
 }
 
-type CompletionTokenDetails struct {
+type CompletionTokensDetails struct {
 	ReasoningTokens int `json:"reasoning_tokens"`
 }
