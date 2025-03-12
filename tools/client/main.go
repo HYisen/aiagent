@@ -66,10 +66,10 @@ Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
 				log.Fatal(err)
 			}
 			h.sessionID = id
-			fmt.Printf("initialized to seesion id %d\n", h.sessionID)
+			fmt.Printf("initialized to session id %d\n", h.sessionID)
 		} else {
 			h.sessionID = id
-			fmt.Printf("try continue on seesion id %d\n", h.sessionID)
+			fmt.Printf("try continue on session id %d\n", h.sessionID)
 		}
 		h.initialized = true
 		return
