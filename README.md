@@ -23,6 +23,12 @@ go build
 ./aiagent
 ```
 
+### tools/client
+
+A not most feature completed, debug purpose client.
+
+Check its README to get knowledge about its usage.
+
 ## Decisions
 
 ### Why not `github.com/openai/openai-go`?
