@@ -8,6 +8,9 @@ CREATE TABLE chats
     FOREIGN KEY (session_id) REFERENCES sessions (id)
 ) STRICT;
 
+-- KEEP SYNC with ddl.sql
+CREATE INDEX idx_chats_session_id_id ON chats (session_id, id);
+
 INSERT INTO chats
 VALUES (NULL, 13, 'an input', 1000);
 

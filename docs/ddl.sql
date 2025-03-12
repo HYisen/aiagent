@@ -20,6 +20,8 @@ CREATE TABLE chats
     FOREIGN KEY (session_id) REFERENCES sessions (id)
 ) STRICT;
 
+CREATE INDEX idx_chats_session_id_id ON chats (session_id, id);
+
 CREATE TABLE results
 (
     id                      INTEGER PRIMARY KEY ASC,
