@@ -29,7 +29,7 @@ func (s *Session) History() []openai.Message {
 }
 
 type Chat struct {
-	ID         int
+	ID         int `json:"-"`
 	SessionID  int
 	Input      string
 	CreateTime int64
