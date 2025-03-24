@@ -1,5 +1,3 @@
-@host = http://localhost:8640
-
 ### FindSessions
 
 GET {{host}}/v1/sessions

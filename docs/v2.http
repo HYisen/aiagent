@@ -1,0 +1,5 @@
+@userId=0
+
+### FindSessions
+
+GET {{host}}/v2/users/{{userId}}/sessions

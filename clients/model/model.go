@@ -10,10 +10,11 @@ import (
 )
 
 type Session struct {
-	ID     int
-	Name   string
-	UserID int
-	Chats  []*Chat `gorm:"foreignkey:SessionID"`
+	ID       int
+	Name     string
+	UserID   int
+	ScopedID int
+	Chats    []*Chat `gorm:"foreignkey:SessionID"`
 }
 
 func (s *Session) History() []openai.Message {

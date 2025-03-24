@@ -53,6 +53,14 @@ func (s *Service) FindSessions(ctx context.Context) ([]*model.Session, *wf.Coded
 	return ret, nil
 }
 
+func (s *Service) FindSessionsByUserID(ctx context.Context, userID int) ([]*model.Session, *wf.CodedError) {
+	ret, err := s.sessionRepository.FindByUserID(ctx, userID)
+	if err != nil {
+		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
+	}
+	return ret, nil
+}
+
 func (s *Service) FindSessionByID(ctx context.Context, id int) (*model.Session, *wf.CodedError) {
 	ret, err := s.sessionRepository.FindWithChats(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -313,6 +321,17 @@ func New(
 		},
 	)
 
+	v2GetSessionsPathSuffix := "/sessions"
+	v2GetSessions := wf.NewClosureHandler(
+		wf.ResourceWithID(http.MethodGet, "/v2/users/", v2GetSessionsPathSuffix),
+		wf.PathIDParser(v2GetSessionsPathSuffix),
+		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
+			return ret.FindSessionsByUserID(ctx, req.(int))
+		},
+		json.Marshal,
+		wf.JSONContentType,
+	)
+
 	ret.web = wf.NewWeb(
 		false,
 		v1PostSession,
@@ -320,6 +339,7 @@ func New(
 		v1GetSessionByID,
 		v1PostSessionChat,
 		v1PostSessionChatStream,
+		v2GetSessions,
 	)
 	return ret
 }

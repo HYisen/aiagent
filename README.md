@@ -61,3 +61,10 @@ Later I took [a tutorial](https://www.freecodecamp.org/news/how-to-implement-ser
 Finding that it might be much easier if I maintain a codec by myself.
 
 As I only need a narrow range of features, can drop compatibility and generic as long as it works in my case.
+
+### Forwarded Authentication
+
+The previous stage, such as Gateway likes [amah](https://github.com/hyisen/amah), would handle the authentication,
+asserting the request access endpoints such as /users/{userID}/sessions have the required privilege.
+
+Such mechanism is simplest in current project. And there is an auth in amah, I don't want to copy and paste that module.

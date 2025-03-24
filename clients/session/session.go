@@ -23,6 +23,10 @@ func (r *Repository) FindAll(ctx context.Context) ([]*model.Session, error) {
 	return r.q.Session.WithContext(ctx).Find()
 }
 
+func (r *Repository) FindByUserID(ctx context.Context, userID int) ([]*model.Session, error) {
+	return r.q.Session.WithContext(ctx).Where(r.q.Session.UserID.Eq(userID)).Find()
+}
+
 func (r *Repository) Find(ctx context.Context, id int) (*model.Session, error) {
 	return r.q.Session.WithContext(ctx).Where(r.q.Session.ID.Eq(id)).First()
 }

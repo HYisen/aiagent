@@ -4,12 +4,13 @@
 
 CREATE TABLE sessions
 (
-    id      INTEGER PRIMARY KEY ASC,
-    name    TEXT NOT NULL,
-    user_id INTEGER
+    id        INTEGER PRIMARY KEY ASC,
+    name      TEXT    NOT NULL,
+    user_id   INTEGER,
+    scoped_id INTEGER NOT NULL
 ) STRICT;
 
-CREATE INDEX idx_sessions_user_id_id ON sessions (user_id, id);
+CREATE INDEX idx_sessions_user_id_scoped_id ON sessions (user_id, scoped_id);
 
 CREATE TABLE chats
 (
