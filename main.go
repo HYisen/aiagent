@@ -71,7 +71,7 @@ func migrate() {
 
 func server() {
 	client := openai.New("https://api.deepseek.com", *DeepSeekAPIKey)
-	db, err := gorm.Open(sqlite.Open(sqliteDatabaseFilename))
+	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("%s?_foreign_keys=on", sqliteDatabaseFilename)))
 	if err != nil {
 		log.Fatal(err)
 	}
