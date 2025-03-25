@@ -36,8 +36,8 @@ type Request struct {
 	Model   string `json:"model"`
 }
 
-func (s *Service) Chat(ctx context.Context, id int, req *Request) (*openai.ChatCompletion, *wf.CodedError) {
-	ses, neo, e := s.prepareChat(ctx, id, req)
+func (s *Service) Chat(ctx context.Context, sessionID int, req *Request) (*openai.ChatCompletion, *wf.CodedError) {
+	ses, neo, e := s.prepareChat(ctx, sessionID, req)
 	if e != nil {
 		return nil, e
 	}
@@ -58,14 +58,14 @@ func (s *Service) Chat(ctx context.Context, id int, req *Request) (*openai.ChatC
 	return chatCompletion, nil
 }
 
-func (s *Service) prepareChat(ctx context.Context, id int, req *Request) (
+func (s *Service) prepareChat(ctx context.Context, sessionID int, req *Request) (
 	ses *model.Session,
 	neo *model.Chat,
 	err *wf.CodedError,
 ) {
-	ses, e := s.sessionRepository.FindWithChats(ctx, id)
+	ses, e := s.sessionRepository.FindWithChats(ctx, sessionID)
 	if errors.Is(e, gorm.ErrRecordNotFound) {
-		return nil, nil, wf.NewCodedErrorf(http.StatusNotFound, "no session on id %v to chat", id)
+		return nil, nil, wf.NewCodedErrorf(http.StatusNotFound, "no session on id %v to chat", sessionID)
 	}
 	if e != nil {
 		return nil, nil, wf.NewCodedError(http.StatusInternalServerError, e)
@@ -89,8 +89,8 @@ func (s *Service) prepareChat(ctx context.Context, id int, req *Request) (
 	return ses, neo, nil
 }
 
-func (s *Service) ChatStream(ctx context.Context, id int, req *Request) (<-chan wf.MessageEvent, *wf.CodedError) {
-	ses, neo, e := s.prepareChat(ctx, id, req)
+func (s *Service) ChatStream(ctx context.Context, sessionID int, req *Request) (<-chan wf.MessageEvent, *wf.CodedError) {
+	ses, neo, e := s.prepareChat(ctx, sessionID, req)
 	if e != nil {
 		return nil, e
 	}
