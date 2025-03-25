@@ -1,5 +1,4 @@
 @userId=1
-@scopedId=2
 
 ### FindSessions
 
@@ -10,7 +9,9 @@ GET {{host}}/v2/users/{{userId}}/sessions
 POST {{host}}/v2/users/{{userId}}/sessions
 
 > {%
-    client.global.set("id", response.body);
+    // It just exists.
+    // noinspection JSUnresolvedReference
+    client.global.set("scopedId", response.body.ScopedID);
 %}
 
 ### v2GetSession

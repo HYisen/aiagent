@@ -46,15 +46,20 @@ func (s *Service) CreateSession(ctx context.Context) (int, *wf.CodedError) {
 	return id, nil
 }
 
-func (s *Service) FindSessions(ctx context.Context) ([]*model.Session, *wf.CodedError) {
-	ret, err := s.sessionRepository.FindAll(ctx)
+func (s *Service) FindSessions(ctx context.Context) ([]*model.SessionWithID, *wf.CodedError) {
+	items, err := s.sessionRepository.FindAll(ctx)
 	if err != nil {
 		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
+	}
+
+	var ret []*model.SessionWithID
+	for _, item := range items {
+		ret = append(ret, item.SessionWithID())
 	}
 	return ret, nil
 }
 
-func (s *Service) FindSessionByID(ctx context.Context, id int) (*model.Session, *wf.CodedError) {
+func (s *Service) FindSessionByID(ctx context.Context, id int) (*model.SessionWithID, *wf.CodedError) {
 	ret, err := s.sessionRepository.FindWithChats(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, wf.NewCodedErrorf(http.StatusNotFound, "no session on id %v", id)
@@ -62,7 +67,7 @@ func (s *Service) FindSessionByID(ctx context.Context, id int) (*model.Session, 
 	if err != nil {
 		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
-	return ret, nil
+	return ret.SessionWithID(), nil
 }
 
 type ChatRequest struct {
@@ -335,8 +340,7 @@ func New(
 		v2PostSessionParser,
 		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
 			return ret.v2.CreateSessionByUserID(ctx, req.([]int)[0])
-		},
-		json.Marshal,
+		}, json.Marshal,
 		wf.JSONContentType,
 	)
 
