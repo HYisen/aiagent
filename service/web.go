@@ -106,7 +106,7 @@ func New(
 
 	v1PostSessionChatPathSuffix := "/chat"
 	v1PostSessionChatPathIDParser := wf.PathIDParser(v1PostSessionChatPathSuffix)
-	v1PostSessionChatPayloadParser := wf.JSONParser(reflect.TypeOf(sc.Request{}))
+	v1PostSessionChatPayloadParser := wf.JSONParser(reflect.TypeOf(sc.RequestPayload{}))
 	v1PostSessionChatMatcher := wf.ResourceWithID(http.MethodPost, "/v1/sessions/", v1PostSessionChatPathSuffix)
 	v1PostSessionChatParser := func(data []byte, path string) (any, error) {
 		id, err := v1PostSessionChatPathIDParser(nil, path)
@@ -128,7 +128,7 @@ func New(
 		},
 		v1PostSessionChatParser,
 		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
-			return ret.chatService.Chat(ctx, req.([]any)[0].(int), req.([]any)[1].(*sc.Request))
+			return ret.chatService.ChatSimple(ctx, req.([]any)[0].(int), req.([]any)[1].(*sc.RequestPayload))
 		},
 		json.Marshal,
 		wf.JSONContentType,
@@ -142,7 +142,7 @@ func New(
 		},
 		v1PostSessionChatParser,
 		func(ctx context.Context, req any) (ch <-chan wf.MessageEvent, codedError *wf.CodedError) {
-			return ret.chatService.ChatStream(ctx, req.([]any)[0].(int), req.([]any)[1].(*sc.Request))
+			return ret.chatService.ChatStream(ctx, req.([]any)[0].(int), req.([]any)[1].(*sc.RequestPayload))
 		},
 	)
 
@@ -186,6 +186,40 @@ func New(
 		wf.JSONContentType,
 	)
 
+	v2PostSessionChatPathMatcher, v2PostSessionChatPathParser := wf.ResourceWithIDs(
+		http.MethodPost,
+		[]string{"v2", "users", "", "sessions", "", "chat"},
+	)
+	v2PostSessionChat := wf.NewClosureHandler(
+		func(req *http.Request) bool {
+			if !v2PostSessionChatPathMatcher(req) {
+				return false
+			}
+			return req.URL.Query().Get("stream") != "true"
+		},
+		func(data []byte, path string) (req any, err error) {
+			raw, err := v2PostSessionChatPathParser(nil, path)
+			if err != nil {
+				return nil, err
+			}
+			ids := raw.([]int)
+			request := &sc.Request{
+				UserID:          ids[0],
+				SessionScopedID: ids[1],
+				RequestPayload:  sc.RequestPayload{},
+			}
+			if err := json.Unmarshal(data, &request.RequestPayload); err != nil {
+				return nil, err
+			}
+			return request, nil
+		},
+		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
+			return ret.chatService.Chat(ctx, req.(*sc.Request))
+		},
+		json.Marshal,
+		wf.JSONContentType,
+	)
+
 	ret.web = wf.NewWeb(
 		false,
 		v1PostSession,
@@ -196,6 +230,7 @@ func New(
 		v2GetSessions,
 		v2PostSession,
 		v2GetSession,
+		v2PostSessionChat,
 	)
 	return ret
 }

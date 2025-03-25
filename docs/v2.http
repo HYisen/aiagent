@@ -18,4 +18,13 @@ POST {{host}}/v2/users/{{userId}}/sessions
 
 GET {{host}}/v2/users/{{userId}}/sessions/{{scopedId}}
 
+### v2PostSessionChat
+
+POST {{host}}/v2/users/{{userId}}/sessions/{{scopedId}}/chat
+
+{
+  "content": "say this is a test",
+  "model": "deepseek-chat"
+}
+
 ###

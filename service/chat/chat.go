@@ -32,11 +32,32 @@ func NewService(
 }
 
 type Request struct {
+	UserID          int
+	SessionScopedID int
+	RequestPayload
+}
+
+type RequestPayload struct {
 	Content string `json:"content"`
 	Model   string `json:"model"`
 }
 
-func (s *Service) Chat(ctx context.Context, sessionID int, req *Request) (*openai.ChatCompletion, *wf.CodedError) {
+func (s *Service) Chat(
+	ctx context.Context,
+	req *Request,
+) (*openai.ChatCompletion, *wf.CodedError) {
+	sessionID, err := s.sessionRepository.FindIDByUserIDAndScopedID(ctx, req.UserID, req.SessionScopedID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, wf.NewCodedErrorf(http.StatusNotFound, "no session %d-%d to chat", req.UserID, req.SessionScopedID)
+	}
+	return s.ChatSimple(ctx, sessionID, &req.RequestPayload)
+}
+
+func (s *Service) ChatSimple(
+	ctx context.Context,
+	sessionID int,
+	req *RequestPayload,
+) (*openai.ChatCompletion, *wf.CodedError) {
 	ses, neo, e := s.prepareChat(ctx, sessionID, req)
 	if e != nil {
 		return nil, e
@@ -58,7 +79,7 @@ func (s *Service) Chat(ctx context.Context, sessionID int, req *Request) (*opena
 	return chatCompletion, nil
 }
 
-func (s *Service) prepareChat(ctx context.Context, sessionID int, req *Request) (
+func (s *Service) prepareChat(ctx context.Context, sessionID int, req *RequestPayload) (
 	ses *model.Session,
 	neo *model.Chat,
 	err *wf.CodedError,
@@ -89,7 +110,7 @@ func (s *Service) prepareChat(ctx context.Context, sessionID int, req *Request) 
 	return ses, neo, nil
 }
 
-func (s *Service) ChatStream(ctx context.Context, sessionID int, req *Request) (<-chan wf.MessageEvent, *wf.CodedError) {
+func (s *Service) ChatStream(ctx context.Context, sessionID int, req *RequestPayload) (<-chan wf.MessageEvent, *wf.CodedError) {
 	ses, neo, e := s.prepareChat(ctx, sessionID, req)
 	if e != nil {
 		return nil, e

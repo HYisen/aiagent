@@ -27,6 +27,18 @@ func (r *Repository) FindByUserID(ctx context.Context, userID int) ([]*model.Ses
 	return r.q.Session.WithContext(ctx).Where(r.q.Session.UserID.Eq(userID)).Find()
 }
 
+func (r *Repository) FindIDByUserIDAndScopedID(ctx context.Context, userID int, scopedID int) (int, error) {
+	item, err := r.q.Session.WithContext(ctx).
+		Where(r.q.Session.UserID.Eq(userID)).
+		Where(r.q.Session.ScopedID.Eq(scopedID)).
+		Select(r.q.Session.ID).
+		First()
+	if err != nil {
+		return 0, err
+	}
+	return item.ID, nil
+}
+
 func (r *Repository) Find(ctx context.Context, id int) (*model.Session, error) {
 	return r.q.Session.WithContext(ctx).Where(r.q.Session.ID.Eq(id)).First()
 }
