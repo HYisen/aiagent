@@ -3,7 +3,7 @@ module aiagent
 go 1.24
 
 require (
-	github.com/hyisen/wf v1.3.0
+	github.com/hyisen/wf v1.4.0
 	gorm.io/driver/sqlite v1.5.7
 	gorm.io/gen v0.3.26
 	gorm.io/gorm v1.25.12

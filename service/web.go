@@ -142,7 +142,7 @@ func New(
 		},
 		v1PostSessionChatParser,
 		func(ctx context.Context, req any) (ch <-chan wf.MessageEvent, codedError *wf.CodedError) {
-			return ret.chatService.ChatStream(ctx, req.([]any)[0].(int), req.([]any)[1].(*sc.RequestPayload))
+			return ret.chatService.ChatStreamSimple(ctx, req.([]any)[0].(int), req.([]any)[1].(*sc.RequestPayload))
 		},
 	)
 
@@ -190,6 +190,22 @@ func New(
 		http.MethodPost,
 		[]string{"v2", "users", "", "sessions", "", "chat"},
 	)
+	v2PostSessionChatParser := func(data []byte, path string) (req any, err error) {
+		raw, err := v2PostSessionChatPathParser(nil, path)
+		if err != nil {
+			return nil, err
+		}
+		ids := raw.([]int)
+		request := &sc.Request{
+			UserID:          ids[0],
+			SessionScopedID: ids[1],
+			RequestPayload:  sc.RequestPayload{},
+		}
+		if err := json.Unmarshal(data, &request.RequestPayload); err != nil {
+			return nil, err
+		}
+		return request, nil
+	}
 	v2PostSessionChat := wf.NewClosureHandler(
 		func(req *http.Request) bool {
 			if !v2PostSessionChatPathMatcher(req) {
@@ -197,27 +213,19 @@ func New(
 			}
 			return req.URL.Query().Get("stream") != "true"
 		},
-		func(data []byte, path string) (req any, err error) {
-			raw, err := v2PostSessionChatPathParser(nil, path)
-			if err != nil {
-				return nil, err
-			}
-			ids := raw.([]int)
-			request := &sc.Request{
-				UserID:          ids[0],
-				SessionScopedID: ids[1],
-				RequestPayload:  sc.RequestPayload{},
-			}
-			if err := json.Unmarshal(data, &request.RequestPayload); err != nil {
-				return nil, err
-			}
-			return request, nil
-		},
+		v2PostSessionChatParser,
 		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
 			return ret.chatService.Chat(ctx, req.(*sc.Request))
 		},
 		json.Marshal,
 		wf.JSONContentType,
+	)
+	v2PostSessionChatStream := wf.NewServerSentEventsHandler(
+		wf.MatchAll(v2PostSessionChatPathMatcher, wf.HasQuery("stream", "true")),
+		v2PostSessionChatParser,
+		func(ctx context.Context, req any) (ch <-chan wf.MessageEvent, codedError *wf.CodedError) {
+			return ret.chatService.ChatStream(ctx, req.(*sc.Request))
+		},
 	)
 
 	ret.web = wf.NewWeb(
@@ -231,6 +239,7 @@ func New(
 		v2PostSession,
 		v2GetSession,
 		v2PostSessionChat,
+		v2PostSessionChatStream,
 	)
 	return ret
 }

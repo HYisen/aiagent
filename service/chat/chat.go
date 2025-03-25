@@ -110,7 +110,20 @@ func (s *Service) prepareChat(ctx context.Context, sessionID int, req *RequestPa
 	return ses, neo, nil
 }
 
-func (s *Service) ChatStream(ctx context.Context, sessionID int, req *RequestPayload) (<-chan wf.MessageEvent, *wf.CodedError) {
+func (s *Service) ChatStream(ctx context.Context, req *Request) (<-chan wf.MessageEvent, *wf.CodedError) {
+	sessionID, err := s.sessionRepository.FindIDByUserIDAndScopedID(ctx, req.UserID, req.SessionScopedID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, wf.NewCodedErrorf(
+			http.StatusNotFound,
+			"no session %d-%d to chat stream",
+			req.UserID,
+			req.SessionScopedID,
+		)
+	}
+	return s.ChatStreamSimple(ctx, sessionID, &req.RequestPayload)
+}
+
+func (s *Service) ChatStreamSimple(ctx context.Context, sessionID int, req *RequestPayload) (<-chan wf.MessageEvent, *wf.CodedError) {
 	ses, neo, e := s.prepareChat(ctx, sessionID, req)
 	if e != nil {
 		return nil, e
