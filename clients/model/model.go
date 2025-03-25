@@ -17,6 +17,10 @@ type Session struct {
 	Chats    []*Chat `gorm:"foreignkey:SessionID"`
 }
 
+func DefaultSessionName() string {
+	return time.Now().String()
+}
+
 func (s *Session) History() []openai.Message {
 	var ret []openai.Message
 	for _, chat := range s.Chats {
@@ -115,4 +119,10 @@ func (r *Result) ChatCompletion() *openai.ChatCompletion {
 			PromptCacheMissTokens:   r.PromptTokens - r.PromptCacheHitTokens,
 		},
 	}
+}
+
+type User struct {
+	ID               int
+	Nickname         string
+	SessionsSequence int
 }

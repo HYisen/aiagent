@@ -3,3 +3,13 @@
 ### FindSessions
 
 GET {{host}}/v2/users/{{userId}}/sessions
+
+### CreateSession
+
+POST {{host}}/v2/users/{{userId}}/sessions
+
+> {%
+    client.global.set("id", response.body);
+%}
+
+###

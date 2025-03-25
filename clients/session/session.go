@@ -43,6 +43,44 @@ func (r *Repository) Save(ctx context.Context, item model.Session) error {
 	return r.q.Session.WithContext(ctx).Save(&item)
 }
 
+func (r *Repository) Create(ctx context.Context, userID int, name string) error {
+	return r.q.Transaction(func(tx *query.Query) error {
+		users, err := tx.User.WithContext(ctx).Where(tx.User.ID.Eq(userID)).Find()
+		if err != nil {
+			return err
+		}
+		var scopedID int
+		if len(users) == 0 {
+			// 404 means we have lost synchronization with its user-auth module,
+			// which could be a designed behaviour as lazy sync.
+			// Because it passed auth, here we trust it. Create a place-holder user.
+			if err := tx.User.WithContext(ctx).Create(&model.User{
+				ID:               0,
+				Nickname:         "auto",
+				SessionsSequence: scopedID,
+			}); err != nil {
+				return err
+			}
+		} else {
+			scopedID = users[0].SessionsSequence
+		}
+		scopedID++
+		if _, err := tx.User.WithContext(ctx).
+			Where(tx.User.ID.Eq(userID)).
+			Update(tx.User.SessionsSequence, scopedID); err != nil {
+			return err
+		}
+
+		return tx.Session.WithContext(ctx).Create(&model.Session{
+			ID:       0,
+			Name:     name,
+			UserID:   userID,
+			ScopedID: scopedID,
+			Chats:    nil,
+		})
+	})
+}
+
 func (r *Repository) FindLastIDByUserIDAndName(ctx context.Context, userID int, name string) (int, error) {
 	do := r.q.Session.WithContext(ctx)
 	if userID != 0 {

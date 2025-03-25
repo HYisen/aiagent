@@ -31,7 +31,7 @@ func (s *Service) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 }
 
 func (s *Service) CreateSession(ctx context.Context) (int, *wf.CodedError) {
-	name := time.Now().String()
+	name := model.DefaultSessionName()
 	if err := s.sessionRepository.Save(ctx, model.Session{
 		ID:   0,
 		Name: name,
@@ -39,6 +39,18 @@ func (s *Service) CreateSession(ctx context.Context) (int, *wf.CodedError) {
 		return 0, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
 	id, err := s.sessionRepository.FindLastIDByUserIDAndName(ctx, 0, name)
+	if err != nil {
+		return 0, wf.NewCodedError(http.StatusInternalServerError, err)
+	}
+	return id, nil
+}
+
+func (s *Service) CreateSessionByUserID(ctx context.Context, userID int) (int, *wf.CodedError) {
+	name := model.DefaultSessionName()
+	if err := s.sessionRepository.Create(ctx, userID, name); err != nil {
+		return 0, wf.NewCodedError(http.StatusInternalServerError, err)
+	}
+	id, err := s.sessionRepository.FindLastIDByUserIDAndName(ctx, userID, name)
 	if err != nil {
 		return 0, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
@@ -321,14 +333,27 @@ func New(
 		},
 	)
 
-	v2GetSessionsPathSuffix := "/sessions"
+	v2SessionsPathSuffix := "/sessions"
 	v2GetSessions := wf.NewClosureHandler(
-		wf.ResourceWithID(http.MethodGet, "/v2/users/", v2GetSessionsPathSuffix),
-		wf.PathIDParser(v2GetSessionsPathSuffix),
+		wf.ResourceWithID(http.MethodGet, "/v2/users/", v2SessionsPathSuffix),
+		wf.PathIDParser(v2SessionsPathSuffix),
 		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
 			return ret.FindSessionsByUserID(ctx, req.(int))
 		},
 		json.Marshal,
+		wf.JSONContentType,
+	)
+
+	v2PostSessionMatcher, v2PostSessionParser := wf.ResourceWithIDs(
+		http.MethodPost,
+		[]string{"v2", "users", "", "sessions"},
+	)
+	v2PostSession := wf.NewClosureHandler(
+		v2PostSessionMatcher,
+		v2PostSessionParser,
+		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
+			return ret.CreateSessionByUserID(ctx, req.([]int)[0])
+		}, json.Marshal,
 		wf.JSONContentType,
 	)
 
@@ -340,6 +365,7 @@ func New(
 		v1PostSessionChat,
 		v1PostSessionChatStream,
 		v2GetSessions,
+		v2PostSession,
 	)
 	return ret
 }
