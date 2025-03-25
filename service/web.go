@@ -39,7 +39,7 @@ func (s *Service) CreateSession(ctx context.Context) (int, *wf.CodedError) {
 	}); err != nil {
 		return 0, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
-	id, err := s.sessionRepository.FindLastIDByUserIDAndName(ctx, 0, name)
+	id, err := s.sessionRepository.FindLastIDByName(ctx, name)
 	if err != nil {
 		return 0, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
@@ -335,7 +335,8 @@ func New(
 		v2PostSessionParser,
 		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
 			return ret.v2.CreateSessionByUserID(ctx, req.([]int)[0])
-		}, json.Marshal,
+		},
+		json.Marshal,
 		wf.JSONContentType,
 	)
 

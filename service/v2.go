@@ -20,16 +20,16 @@ func NewV2Service(chatRepository *chat.Repository, sessionRepository *session.Re
 	return &V2Service{chatRepository: chatRepository, sessionRepository: sessionRepository}
 }
 
-func (s *V2Service) CreateSessionByUserID(ctx context.Context, userID int) (int, *wf.CodedError) {
+func (s *V2Service) CreateSessionByUserID(ctx context.Context, userID int) (created *model.Session, _ *wf.CodedError) {
 	name := model.DefaultSessionName()
 	if err := s.sessionRepository.Create(ctx, userID, name); err != nil {
-		return 0, wf.NewCodedError(http.StatusInternalServerError, err)
+		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
-	id, err := s.sessionRepository.FindLastIDByUserIDAndName(ctx, userID, name)
+	ret, err := s.sessionRepository.FindLastByUserIDAndName(ctx, userID, name)
 	if err != nil {
-		return 0, wf.NewCodedError(http.StatusInternalServerError, err)
+		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
-	return id, nil
+	return ret, nil
 }
 
 func (s *V2Service) FindSessionsByUserID(ctx context.Context, userID int) ([]*model.Session, *wf.CodedError) {

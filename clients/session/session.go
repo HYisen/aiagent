@@ -90,16 +90,19 @@ func (r *Repository) Create(ctx context.Context, userID int, name string) error 
 	})
 }
 
-func (r *Repository) FindLastIDByUserIDAndName(ctx context.Context, userID int, name string) (int, error) {
-	do := r.q.Session.WithContext(ctx)
-	if userID != 0 {
-		do = do.Where(r.q.Session.UserID.Eq(userID))
-	}
-	last, err := do.Where(r.q.Session.Name.Eq(name)).Last()
+func (r *Repository) FindLastIDByName(ctx context.Context, name string) (int, error) {
+	last, err := r.q.Session.WithContext(ctx).Where(r.q.Session.Name.Eq(name)).Last()
 	if err != nil {
 		return 0, err
 	}
 	return last.ID, err
+}
+
+func (r *Repository) FindLastByUserIDAndName(ctx context.Context, userID int, name string) (*model.Session, error) {
+	return r.q.Session.WithContext(ctx).
+		Where(r.q.Session.UserID.Eq(userID)).
+		Where(r.q.Session.Name.Eq(name)).
+		Last()
 }
 
 // AppendChat is unsupported yet.
