@@ -73,7 +73,7 @@ func New(
 ) *Service {
 	ret := &Service{
 		web:               nil,
-		v2:                NewV2Service(chatRepository, sessionRepository),
+		v2:                NewV2Service(sessionRepository),
 		chatService:       sc.NewService(client, chatRepository, sessionRepository),
 		sessionRepository: sessionRepository,
 	}

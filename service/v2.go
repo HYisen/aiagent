@@ -1,7 +1,6 @@
 package service
 
 import (
-	"aiagent/clients/chat"
 	"aiagent/clients/model"
 	"aiagent/clients/session"
 	"context"
@@ -13,11 +12,10 @@ import (
 
 type V2Service struct {
 	sessionRepository *session.Repository
-	chatRepository    *chat.Repository
 }
 
-func NewV2Service(chatRepository *chat.Repository, sessionRepository *session.Repository) *V2Service {
-	return &V2Service{chatRepository: chatRepository, sessionRepository: sessionRepository}
+func NewV2Service(sessionRepository *session.Repository) *V2Service {
+	return &V2Service{sessionRepository: sessionRepository}
 }
 
 func (s *V2Service) CreateSessionByUserID(ctx context.Context, userID int) (created *model.Session, _ *wf.CodedError) {
