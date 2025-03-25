@@ -19,6 +19,7 @@ import (
 )
 
 type Service struct {
+	v2     *V2Service
 	client *openai.Client
 	web    *wf.Web
 
@@ -45,28 +46,8 @@ func (s *Service) CreateSession(ctx context.Context) (int, *wf.CodedError) {
 	return id, nil
 }
 
-func (s *Service) CreateSessionByUserID(ctx context.Context, userID int) (int, *wf.CodedError) {
-	name := model.DefaultSessionName()
-	if err := s.sessionRepository.Create(ctx, userID, name); err != nil {
-		return 0, wf.NewCodedError(http.StatusInternalServerError, err)
-	}
-	id, err := s.sessionRepository.FindLastIDByUserIDAndName(ctx, userID, name)
-	if err != nil {
-		return 0, wf.NewCodedError(http.StatusInternalServerError, err)
-	}
-	return id, nil
-}
-
 func (s *Service) FindSessions(ctx context.Context) ([]*model.Session, *wf.CodedError) {
 	ret, err := s.sessionRepository.FindAll(ctx)
-	if err != nil {
-		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
-	}
-	return ret, nil
-}
-
-func (s *Service) FindSessionsByUserID(ctx context.Context, userID int) ([]*model.Session, *wf.CodedError) {
-	ret, err := s.sessionRepository.FindByUserID(ctx, userID)
 	if err != nil {
 		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
@@ -261,6 +242,7 @@ func New(
 	ret := &Service{
 		client:            client,
 		web:               nil,
+		v2:                NewV2Service(chatRepository, sessionRepository),
 		sessionRepository: sessionRepository,
 		chatRepository:    chatRepository,
 	}
@@ -338,7 +320,7 @@ func New(
 		wf.ResourceWithID(http.MethodGet, "/v2/users/", v2SessionsPathSuffix),
 		wf.PathIDParser(v2SessionsPathSuffix),
 		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
-			return ret.FindSessionsByUserID(ctx, req.(int))
+			return ret.v2.FindSessionsByUserID(ctx, req.(int))
 		},
 		json.Marshal,
 		wf.JSONContentType,
@@ -352,7 +334,7 @@ func New(
 		v2PostSessionMatcher,
 		v2PostSessionParser,
 		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
-			return ret.CreateSessionByUserID(ctx, req.([]int)[0])
+			return ret.v2.CreateSessionByUserID(ctx, req.([]int)[0])
 		}, json.Marshal,
 		wf.JSONContentType,
 	)
