@@ -2,68 +2,25 @@ package service
 
 import (
 	"aiagent/clients/chat"
-	"aiagent/clients/model"
 	"aiagent/clients/openai"
 	"aiagent/clients/session"
 	sc "aiagent/service/chat"
 	"context"
 	"encoding/json"
-	"errors"
 	"github.com/hyisen/wf"
-	"gorm.io/gorm"
 	"net/http"
 	"reflect"
 )
 
 type Service struct {
+	v1          *V1Service
 	v2          *V2Service
 	chatService *sc.Service
 	web         *wf.Web
-
-	sessionRepository *session.Repository
 }
 
 func (s *Service) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	s.web.ServeHTTP(writer, request)
-}
-
-func (s *Service) CreateSession(ctx context.Context) (int, *wf.CodedError) {
-	name := model.DefaultSessionName()
-	if err := s.sessionRepository.Save(ctx, model.Session{
-		ID:   0,
-		Name: name,
-	}); err != nil {
-		return 0, wf.NewCodedError(http.StatusInternalServerError, err)
-	}
-	id, err := s.sessionRepository.FindLastIDByName(ctx, name)
-	if err != nil {
-		return 0, wf.NewCodedError(http.StatusInternalServerError, err)
-	}
-	return id, nil
-}
-
-func (s *Service) FindSessions(ctx context.Context) ([]*model.SessionWithID, *wf.CodedError) {
-	items, err := s.sessionRepository.FindAll(ctx)
-	if err != nil {
-		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
-	}
-
-	var ret []*model.SessionWithID
-	for _, item := range items {
-		ret = append(ret, item.SessionWithID())
-	}
-	return ret, nil
-}
-
-func (s *Service) FindSessionByID(ctx context.Context, id int) (*model.SessionWithID, *wf.CodedError) {
-	ret, err := s.sessionRepository.FindWithChats(ctx, id)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, wf.NewCodedErrorf(http.StatusNotFound, "no session on id %v", id)
-	}
-	if err != nil {
-		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
-	}
-	return ret.SessionWithID(), nil
 }
 
 func New(
@@ -72,17 +29,17 @@ func New(
 	chatRepository *chat.Repository,
 ) *Service {
 	ret := &Service{
-		web:               nil,
-		v2:                NewV2Service(sessionRepository),
-		chatService:       sc.NewService(client, chatRepository, sessionRepository),
-		sessionRepository: sessionRepository,
+		web:         nil,
+		v1:          NewV1Service(sessionRepository),
+		v2:          NewV2Service(sessionRepository),
+		chatService: sc.NewService(client, chatRepository, sessionRepository),
 	}
 
 	v1PostSession := wf.NewJSONHandler(
 		wf.Exact(http.MethodPost, "/v1/sessions"),
 		reflect.TypeOf(wf.Empty{}),
 		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
-			return ret.CreateSession(ctx)
+			return ret.v1.CreateSession(ctx)
 		},
 	)
 
@@ -90,7 +47,7 @@ func New(
 		wf.Exact(http.MethodGet, "/v1/sessions"),
 		reflect.TypeOf(wf.Empty{}),
 		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
-			return ret.FindSessions(ctx)
+			return ret.v1.FindSessions(ctx)
 		},
 	)
 
@@ -98,7 +55,7 @@ func New(
 		wf.ResourceWithID(http.MethodGet, "/v1/sessions/", ""),
 		wf.PathIDParser(""),
 		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
-			return ret.FindSessionByID(ctx, req.(int))
+			return ret.v1.FindSessionByID(ctx, req.(int))
 		},
 		json.Marshal,
 		wf.JSONContentType,
