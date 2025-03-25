@@ -91,7 +91,7 @@ func (r *Repository) Create(ctx context.Context, userID int, name string) error 
 }
 
 func (r *Repository) FindLastIDByName(ctx context.Context, name string) (int, error) {
-	last, err := r.q.Session.WithContext(ctx).Where(r.q.Session.Name.Eq(name)).Last()
+	last, err := r.q.Session.WithContext(ctx).Where(r.q.Session.Name.Eq(name)).Select(r.q.Session.ID).Last()
 	if err != nil {
 		return 0, err
 	}
