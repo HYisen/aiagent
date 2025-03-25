@@ -39,6 +39,15 @@ func (r *Repository) FindWithChats(ctx context.Context, id int) (*model.Session,
 		First()
 }
 
+func (r *Repository) FindWithChatsByUserIDAndScopedID(ctx context.Context, userID int, scopedID int) (*model.Session, error) {
+	return r.q.Session.WithContext(ctx).
+		Where(r.q.Session.UserID.Eq(userID)).
+		Where(r.q.Session.ScopedID.Eq(scopedID)).
+		Preload(r.q.Session.Chats).
+		Preload(r.q.Session.Chats.Result).
+		First()
+}
+
 func (r *Repository) Save(ctx context.Context, item model.Session) error {
 	return r.q.Session.WithContext(ctx).Save(&item)
 }

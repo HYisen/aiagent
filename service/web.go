@@ -339,6 +339,22 @@ func New(
 		wf.JSONContentType,
 	)
 
+	v2GetSessionMatcher, v2GetSessionParser := wf.ResourceWithIDs(
+		http.MethodGet,
+		[]string{"v2", "users", "", "sessions", ""},
+	)
+	v2GetSession := wf.NewClosureHandler(
+		v2GetSessionMatcher,
+		v2GetSessionParser,
+		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
+			ids := req.([]int)
+			userID, scopedID := ids[0], ids[1]
+			return ret.v2.FindSession(ctx, userID, scopedID)
+		},
+		json.Marshal,
+		wf.JSONContentType,
+	)
+
 	ret.web = wf.NewWeb(
 		false,
 		v1PostSession,
@@ -348,6 +364,7 @@ func New(
 		v1PostSessionChatStream,
 		v2GetSessions,
 		v2PostSession,
+		v2GetSession,
 	)
 	return ret
 }

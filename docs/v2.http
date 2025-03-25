@@ -1,4 +1,5 @@
-@userId=0
+@userId=1
+@scopedId=2
 
 ### FindSessions
 
@@ -11,5 +12,9 @@ POST {{host}}/v2/users/{{userId}}/sessions
 > {%
     client.global.set("id", response.body);
 %}
+
+### v2GetSession
+
+GET {{host}}/v2/users/{{userId}}/sessions/{{scopedId}}
 
 ###

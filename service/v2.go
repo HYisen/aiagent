@@ -5,7 +5,9 @@ import (
 	"aiagent/clients/model"
 	"aiagent/clients/session"
 	"context"
+	"errors"
 	"github.com/hyisen/wf"
+	"gorm.io/gorm"
 	"net/http"
 )
 
@@ -32,6 +34,17 @@ func (s *V2Service) CreateSessionByUserID(ctx context.Context, userID int) (int,
 
 func (s *V2Service) FindSessionsByUserID(ctx context.Context, userID int) ([]*model.Session, *wf.CodedError) {
 	ret, err := s.sessionRepository.FindByUserID(ctx, userID)
+	if err != nil {
+		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
+	}
+	return ret, nil
+}
+
+func (s *V2Service) FindSession(ctx context.Context, userID int, scopedID int) (*model.Session, *wf.CodedError) {
+	ret, err := s.sessionRepository.FindWithChatsByUserIDAndScopedID(ctx, userID, scopedID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, wf.NewCodedErrorf(http.StatusNotFound, "no session at %v-%v", userID, scopedID)
+	}
 	if err != nil {
 		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
