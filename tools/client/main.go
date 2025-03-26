@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"github.com/hyisen/wf"
 	"io"
@@ -17,8 +18,11 @@ import (
 	"strings"
 )
 
+var endpoint = flag.String("endpoint", "http://localhost:8640", "aiagent endpoint")
+
 func main() {
-	client := NewClient("http://localhost:8640")
+	flag.Parse()
+	client := NewClient(*endpoint)
 	handler := NewChatLineHandler(client)
 	controller := console.NewController(handler, console.NewDefaultOptions())
 	controller.Run()
