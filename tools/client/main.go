@@ -3,7 +3,7 @@ package main
 import (
 	"aiagent/clients/openai"
 	"aiagent/console"
-	"aiagent/service"
+	"aiagent/service/chat"
 	"bufio"
 	"bytes"
 	"encoding/json"
@@ -110,7 +110,7 @@ func (c *Client) CreateSession() (id int, error error) {
 
 func (c *Client) Chat(sessionID int, content string) (words <-chan string, err error) {
 	url := fmt.Sprintf("%s/v1/sessions/%d/chat?stream=true", c.endpoint, sessionID)
-	req := &service.ChatRequest{
+	req := &chat.RequestPayload{
 		Content: content,
 		Model:   openai.ChatModelDeepSeekR1,
 	}
