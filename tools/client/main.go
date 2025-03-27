@@ -1,9 +1,11 @@
 package main
 
 import (
+	"aiagent/clients/model"
 	"aiagent/clients/openai"
 	"aiagent/console"
 	"aiagent/service/chat"
+	"aiagent/tools/client/keeper"
 	"bufio"
 	"bytes"
 	"encoding/json"
@@ -88,42 +90,104 @@ Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
 	}
 }
 
-type Client struct {
-	endpoint string
+type TokenProvider interface {
+	GetToken() (string, error)
 }
 
+type Client struct {
+	endpoint      string
+	apiPathPrefix string
+	tokenProvider TokenProvider
+}
+
+const skipToken = ""
+
 func NewClient(endpoint string) *Client {
-	return &Client{endpoint: endpoint}
+	return &Client{
+		endpoint:      endpoint,
+		apiPathPrefix: "v1",
+		tokenProvider: keeper.NewLocalKeeper(skipToken),
+	}
+}
+
+// TryAttachToken add token header to req with token from c.tokenProvider, if it's not skipToken.
+// This behaviour shall be privileged and limited, thus I drop the other path that
+// feature Client with a http.Client which has http.RoundTripper that automatically gets and attaches token.
+func (c *Client) TryAttachToken(req *http.Request) {
+	token, err := c.tokenProvider.GetToken()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if token != skipToken {
+		req.Header.Set("Token", token)
+	}
+}
+
+func (c *Client) isV1() bool {
+	// TODO: later, use seperated Clients to avoid achieving polymorphism through switch by a variable.
+	return c.apiPathPrefix == "v1"
 }
 
 func (c *Client) CreateSession() (id int, error error) {
-	resp, err := http.Post(fmt.Sprintf("%s/v1/sessions", c.endpoint), "", nil)
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/%s/sessions", c.endpoint, c.apiPathPrefix), nil)
+	c.TryAttachToken(req)
 	if err != nil {
 		return 0, err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer func(c io.Closer) {
+		err = errors.Join(err, c.Close())
+	}(resp.Body)
+
+	if resp.StatusCode == http.StatusForbidden {
+		c.upgrade()
+		return c.CreateSession()
 	}
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return 0, err
 	}
-	num, err := strconv.Atoi(string(data))
-	if err != nil {
-		return 0, err
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("unexpected response status code %d: %s", resp.StatusCode, string(data))
 	}
-	return num, nil
+
+	if c.isV1() {
+		num, err := strconv.Atoi(string(data))
+		if err != nil {
+			return 0, err
+		}
+		return num, nil
+	} else {
+		var session model.Session
+		if err := json.Unmarshal(data, &session); err != nil {
+			return 0, err
+		}
+		return session.ScopedID, nil
+	}
 }
 
 func (c *Client) Chat(sessionID int, content string) (words <-chan string, err error) {
-	url := fmt.Sprintf("%s/v1/sessions/%d/chat?stream=true", c.endpoint, sessionID)
-	req := &chat.RequestPayload{
+	url := fmt.Sprintf("%s/%s/sessions/%d/chat?stream=true", c.endpoint, c.apiPathPrefix, sessionID)
+	payload := &chat.RequestPayload{
 		Content: content,
 		Model:   openai.ChatModelDeepSeekR1,
 	}
-	data, err := json.Marshal(req)
+	data, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := http.Post(url, wf.JSONContentType, bytes.NewReader(data))
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", wf.JSONContentType)
+	c.TryAttachToken(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
