@@ -76,7 +76,7 @@ func (r *Repository) Create(ctx context.Context, userID int, name string) error 
 			// which could be a designed behaviour as lazy sync.
 			// Because it passed auth, here we trust it. Create a place-holder user.
 			if err := tx.User.WithContext(ctx).Create(&model.User{
-				ID:               0,
+				ID:               userID,
 				Nickname:         "auto",
 				SessionsSequence: scopedID,
 			}); err != nil {
