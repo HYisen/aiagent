@@ -10,15 +10,28 @@ A server side app that provide HTTP interface to access LLM service for me.
 # gen code are not included in git, re-generate them
 go run tools/gen/main.go
 
-# check docs/*.sql and do the necessary DDL to setup DB
-# check Repository code to know which DataBase
-
 # compile
 go build
+```
 
+```shell
+# alternatively, use Docker to build a Linux release
+docker build --output=out .
+```
+
+```shell
 # check built-in help
 ./aiagent -h
+```
 
+```shell
+# setup DB by program
+./aiagent --mode=migrate
+# Alternatively, check docs/*.sql and do the necessary DDL to setup DB.
+# Check Repository code to know which DataBase.
+```
+
+```shell
 # do what you want
 ./aiagent
 ```
