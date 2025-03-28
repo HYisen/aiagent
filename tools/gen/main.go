@@ -11,7 +11,7 @@ func main() {
 		ModelPkgPath: "",
 		Mode:         gen.WithoutContext | gen.WithDefaultQuery | gen.WithQueryInterface,
 	})
-	g.ApplyBasic(model.Session{})
+	g.ApplyBasic(model.Session{}, model.User{})
 
 	g.ApplyBasic(model.Chat{}, model.Result{})
 	g.Execute()

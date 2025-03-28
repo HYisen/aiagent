@@ -10,15 +10,28 @@ A server side app that provide HTTP interface to access LLM service for me.
 # gen code are not included in git, re-generate them
 go run tools/gen/main.go
 
-# check docs/*.sql and do the necessary DDL to setup DB
-# check Repository code to know which DataBase
-
 # compile
 go build
+```
 
+```shell
+# alternatively, use Docker to build a Linux release
+docker build --output=out .
+```
+
+```shell
 # check built-in help
 ./aiagent -h
+```
 
+```shell
+# setup DB by program
+./aiagent --mode=migrate
+# Alternatively, check docs/*.sql and do the necessary DDL to setup DB.
+# Check Repository code to know which DataBase.
+```
+
+```shell
 # do what you want
 ./aiagent
 ```
@@ -61,3 +74,10 @@ Later I took [a tutorial](https://www.freecodecamp.org/news/how-to-implement-ser
 Finding that it might be much easier if I maintain a codec by myself.
 
 As I only need a narrow range of features, can drop compatibility and generic as long as it works in my case.
+
+### Forwarded Authentication
+
+The previous stage, such as Gateway likes [amah](https://github.com/hyisen/amah), would handle the authentication,
+asserting the request access endpoints such as /users/{userID}/sessions have the required privilege.
+
+Such mechanism is simplest in current project. And there is an auth in amah, I don't want to copy and paste that module.

@@ -4,12 +4,14 @@
 
 CREATE TABLE sessions
 (
-    id      INTEGER PRIMARY KEY ASC,
-    name    TEXT NOT NULL,
-    user_id INTEGER
+    id        INTEGER PRIMARY KEY ASC,
+    name      TEXT    NOT NULL,
+    user_id   INTEGER NOT NULL,
+    scoped_id INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users (id)
 ) STRICT;
 
-CREATE INDEX idx_sessions_user_id_id ON sessions (user_id, id);
+CREATE INDEX idx_sessions_user_id_scoped_id ON sessions (user_id, scoped_id);
 
 CREATE TABLE chats
 (
@@ -44,3 +46,13 @@ CREATE TABLE results
 
     FOREIGN KEY (chat_id) REFERENCES chats (id)
 ) STRICT;
+
+CREATE TABLE users
+(
+    id                INTEGER PRIMARY KEY ASC,
+    nickname          TEXT    NOT NULL,
+    sessions_sequence INTEGER NOT NULL
+) STRICT;
+
+INSERT INTO users (id, nickname, sessions_sequence)
+VALUES (0, 'creator', 1000);

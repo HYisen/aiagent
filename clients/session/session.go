@@ -23,6 +23,22 @@ func (r *Repository) FindAll(ctx context.Context) ([]*model.Session, error) {
 	return r.q.Session.WithContext(ctx).Find()
 }
 
+func (r *Repository) FindByUserID(ctx context.Context, userID int) ([]*model.Session, error) {
+	return r.q.Session.WithContext(ctx).Where(r.q.Session.UserID.Eq(userID)).Find()
+}
+
+func (r *Repository) FindIDByUserIDAndScopedID(ctx context.Context, userID int, scopedID int) (int, error) {
+	item, err := r.q.Session.WithContext(ctx).
+		Where(r.q.Session.UserID.Eq(userID)).
+		Where(r.q.Session.ScopedID.Eq(scopedID)).
+		Select(r.q.Session.ID).
+		First()
+	if err != nil {
+		return 0, err
+	}
+	return item.ID, nil
+}
+
 func (r *Repository) Find(ctx context.Context, id int) (*model.Session, error) {
 	return r.q.Session.WithContext(ctx).Where(r.q.Session.ID.Eq(id)).First()
 }
@@ -35,20 +51,70 @@ func (r *Repository) FindWithChats(ctx context.Context, id int) (*model.Session,
 		First()
 }
 
+func (r *Repository) FindWithChatsByUserIDAndScopedID(ctx context.Context, userID int, scopedID int) (*model.Session, error) {
+	return r.q.Session.WithContext(ctx).
+		Where(r.q.Session.UserID.Eq(userID)).
+		Where(r.q.Session.ScopedID.Eq(scopedID)).
+		Preload(r.q.Session.Chats).
+		Preload(r.q.Session.Chats.Result).
+		First()
+}
+
 func (r *Repository) Save(ctx context.Context, item model.Session) error {
 	return r.q.Session.WithContext(ctx).Save(&item)
 }
 
-func (r *Repository) FindLastIDByUserIDAndName(ctx context.Context, userID int, name string) (int, error) {
-	do := r.q.Session.WithContext(ctx)
-	if userID != 0 {
-		do = do.Where(r.q.Session.UserID.Eq(userID))
-	}
-	last, err := do.Where(r.q.Session.Name.Eq(name)).Last()
+func (r *Repository) Create(ctx context.Context, userID int, name string) error {
+	return r.q.Transaction(func(tx *query.Query) error {
+		users, err := tx.User.WithContext(ctx).Where(tx.User.ID.Eq(userID)).Find()
+		if err != nil {
+			return err
+		}
+		var scopedID int
+		if len(users) == 0 {
+			// 404 means we have lost synchronization with its user-auth module,
+			// which could be a designed behaviour as lazy sync.
+			// Because it passed auth, here we trust it. Create a place-holder user.
+			if err := tx.User.WithContext(ctx).Create(&model.User{
+				ID:               userID,
+				Nickname:         "auto",
+				SessionsSequence: scopedID,
+			}); err != nil {
+				return err
+			}
+		} else {
+			scopedID = users[0].SessionsSequence
+		}
+		scopedID++
+		if _, err := tx.User.WithContext(ctx).
+			Where(tx.User.ID.Eq(userID)).
+			Update(tx.User.SessionsSequence, scopedID); err != nil {
+			return err
+		}
+
+		return tx.Session.WithContext(ctx).Create(&model.Session{
+			ID:       0,
+			Name:     name,
+			UserID:   userID,
+			ScopedID: scopedID,
+			Chats:    nil,
+		})
+	})
+}
+
+func (r *Repository) FindLastIDByName(ctx context.Context, name string) (int, error) {
+	last, err := r.q.Session.WithContext(ctx).Where(r.q.Session.Name.Eq(name)).Select(r.q.Session.ID).Last()
 	if err != nil {
 		return 0, err
 	}
 	return last.ID, err
+}
+
+func (r *Repository) FindLastByUserIDAndName(ctx context.Context, userID int, name string) (*model.Session, error) {
+	return r.q.Session.WithContext(ctx).
+		Where(r.q.Session.UserID.Eq(userID)).
+		Where(r.q.Session.Name.Eq(name)).
+		Last()
 }
 
 // AppendChat is unsupported yet.

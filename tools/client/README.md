@@ -29,8 +29,6 @@ git clone https://github.com/hyisen/aiagent
 
 cd aiagent
 
-go get
-
 # generate generated code
 go run tools/gen/main.go
 

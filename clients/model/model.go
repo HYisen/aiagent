@@ -10,10 +10,27 @@ import (
 )
 
 type Session struct {
-	ID     int
-	Name   string
-	UserID int
-	Chats  []*Chat `gorm:"foreignkey:SessionID"`
+	ID       int `json:"-"`
+	Name     string
+	UserID   int
+	ScopedID int
+	Chats    []*Chat `gorm:"foreignkey:SessionID"`
+}
+
+func (s *Session) SessionWithID() *SessionWithID {
+	return &SessionWithID{
+		ID:      s.ID,
+		Session: *s,
+	}
+}
+
+type SessionWithID struct {
+	ID int
+	Session
+}
+
+func DefaultSessionName() string {
+	return time.Now().String()
 }
 
 func (s *Session) History() []openai.Message {
@@ -29,7 +46,7 @@ func (s *Session) History() []openai.Message {
 }
 
 type Chat struct {
-	ID         int
+	ID         int `json:"-"`
 	SessionID  int
 	Input      string
 	CreateTime int64
@@ -114,4 +131,10 @@ func (r *Result) ChatCompletion() *openai.ChatCompletion {
 			PromptCacheMissTokens:   r.PromptTokens - r.PromptCacheHitTokens,
 		},
 	}
+}
+
+type User struct {
+	ID               int
+	Nickname         string
+	SessionsSequence int
 }

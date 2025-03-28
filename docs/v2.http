@@ -1,0 +1,39 @@
+@userId=1
+
+### FindSessions
+
+GET {{host}}/v2/users/{{userId}}/sessions
+
+### CreateSession
+
+POST {{host}}/v2/users/{{userId}}/sessions
+
+> {%
+    // It just exists.
+    // noinspection JSUnresolvedReference
+    client.global.set("scopedId", response.body.ScopedID);
+%}
+
+### v2GetSession
+
+GET {{host}}/v2/users/{{userId}}/sessions/{{scopedId}}
+
+### v2PostSessionChat
+
+POST {{host}}/v2/users/{{userId}}/sessions/{{scopedId}}/chat
+
+{
+  "content": "say this is a test",
+  "model": "deepseek-chat"
+}
+
+### v2PostSessionChatStream
+
+POST {{host}}/v2/users/{{userId}}/sessions/{{scopedId}}/chat?stream=true
+
+{
+  "content": "say this is a test",
+  "model": "deepseek-reasoner"
+}
+
+###
