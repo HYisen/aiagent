@@ -1,7 +1,8 @@
-package main
+package client
 
 import (
 	"aiagent/tools/client/keeper"
+	"aiagent/tools/client/ui"
 	"context"
 	"fmt"
 	"log"
@@ -9,7 +10,7 @@ import (
 )
 
 func (c *Client) upgrade() {
-	username, password, err := login()
+	username, password, err := ui.Login()
 	if err != nil {
 		log.Fatal(err)
 	}

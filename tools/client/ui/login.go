@@ -1,4 +1,4 @@
-package main
+package ui
 
 import (
 	"bufio"
@@ -56,7 +56,7 @@ func isTerminal() bool {
 	return term.IsTerminal(syscall.Stdin) && term.IsTerminal(syscall.Stdout)
 }
 
-func login() (username string, password string, err error) {
+func Login() (username string, password string, err error) {
 	if !isTerminal() {
 		slog.Warn("Not terminal, switch to fallback password echo mode.")
 		return loginFallback()
