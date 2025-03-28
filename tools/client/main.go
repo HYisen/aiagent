@@ -2,7 +2,8 @@ package main
 
 import (
 	"aiagent/console"
-	client2 "aiagent/tools/client/client"
+	"aiagent/tools/client/clients/ai"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -14,19 +15,18 @@ var endpoint = flag.String("endpoint", "http://localhost:8080/ai", "aiagent endp
 
 func main() {
 	flag.Parse()
-	client := client2.NewClient(*endpoint)
-	handler := NewChatLineHandler(client)
+	handler := NewChatLineHandler(ai.NewClient(*endpoint))
 	controller := console.NewController(handler, console.NewDefaultOptions())
 	controller.Run()
 }
 
 type ChatLineHandler struct {
-	client      *client2.Client
+	client      ai.Client
 	initialized bool
 	sessionID   int
 }
 
-func NewChatLineHandler(client *client2.Client) *ChatLineHandler {
+func NewChatLineHandler(client ai.Client) *ChatLineHandler {
 	return &ChatLineHandler{client: client}
 }
 
@@ -47,6 +47,22 @@ func checkAndParseInitLine(s string) (isInitLine bool, createSession bool, oldSe
 	return true, false, id
 }
 
+func (h *ChatLineHandler) createSession() (idOrScopedID int, err error) {
+	id, errOne := h.client.CreateSession()
+	if errOne == nil || !errors.Is(errOne, ai.ErrForbidden) {
+		return id, nil
+	}
+	neo, errTwo := h.client.UpgradeOptional()
+	if errTwo != nil {
+		return 0, errTwo
+	}
+	if neo == nil {
+		return 0, errors.Join(errOne, errors.New("client does not support upgrade"))
+	}
+	h.client = neo
+	return h.client.CreateSession()
+}
+
 func (h *ChatLineHandler) HandleLine(line string) {
 	isInitLine, createSession, id := checkAndParseInitLine(line)
 	if !isInitLine && !h.initialized {
@@ -57,9 +73,10 @@ Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
 	if isInitLine {
 		if createSession {
 			fmt.Println("connecting...")
-			id, err := h.client.CreateSession()
+			id, err := h.createSession()
 			if err != nil {
-				log.Fatal(err)
+				fmt.Printf("Create session failed: %v\n", err)
+				return
 			}
 			h.sessionID = id
 			fmt.Printf("initialized to session id %d\n", h.sessionID)
