@@ -123,33 +123,82 @@ func (s *Service) ChatStream(ctx context.Context, req *Request) (<-chan wf.Messa
 	return s.ChatStreamSimple(ctx, sessionID, &req.RequestPayload)
 }
 
-func (s *Service) ChatStreamSimple(ctx context.Context, sessionID int, req *RequestPayload) (<-chan wf.MessageEvent, *wf.CodedError) {
+func detachedContext(parent context.Context) (context.Context, context.CancelFunc) {
+	ctx := context.WithoutCancel(parent)
+	if deadline, ok := parent.Deadline(); ok {
+		return context.WithDeadline(ctx, deadline)
+	} else {
+		return context.WithCancel(ctx)
+	}
+}
+
+func (s *Service) ChatStreamSimple(
+	ctx context.Context,
+	sessionID int,
+	req *RequestPayload,
+) (<-chan wf.MessageEvent, *wf.CodedError) {
 	ses, neo, e := s.prepareChat(ctx, sessionID, req)
 	if e != nil {
 		return nil, e
 	}
 
-	up, err := s.client.OneShotStreamFast(ctx, openai.Request{
+	detachedCtx, detachedCancelFunc := detachedContext(ctx)
+	// If we use ctx here, once client has gone, out chat to upstream would be forced to end, which is not ideal.
+	up, err := s.client.OneShotStreamFast(detachedCtx, openai.Request{
 		Messages: append(ses.History(), openai.NewUserMessage(req.Content)),
 		Model:    req.Model,
 	})
 	if err != nil {
+		detachedCancelFunc()
 		return nil, wf.NewCodedErrorf(http.StatusInternalServerError, "upstream: %v", err.Error())
 	}
 
 	down := make(chan wf.MessageEvent)
-	go s.translateAggregateSave(ctx, up, down, neo)
+	// If ctx done, detachedCtx would go on the record procedure.
+	go s.translateAggregateSave(detachedCtx, detachedCancelFunc, ctx, up, down, neo)
 	return down, nil
+}
+
+func (s *Service) drainAndRecordStreamResult(
+	ctx context.Context,
+	up <-chan openai.ChatCompletionChunk,
+	down chan<- wf.MessageEvent,
+	neo *model.Chat,
+	aggregator *openai.ChatCompletion,
+) {
+	// In happy path, up should have closed gracefully, but in client gone situation,
+	// the up should have kept going, and we shall drain all the remained out here.
+	var drainCount int
+	for chunk := range up {
+		drainCount++
+		aggregator.Aggregate(chunk)
+	}
+
+	neo.Result = model.NewResult(aggregator)
+	if err := s.chatRepository.Save(ctx, neo); err != nil {
+		slog.Error("can not append record in stream mode", "chat", neo, "err", err)
+		// If up can be drained, most likely client has gone, and down is not writeable.
+		if drainCount == 0 {
+			down <- NewErrorMessageEvent(err)
+		}
+	}
+	if drainCount > 0 {
+		slog.Info("client has gone but the result is saved", "drained", drainCount)
+	}
 }
 
 func (s *Service) translateAggregateSave(
 	ctx context.Context,
+	cancelFunc context.CancelFunc,
+	clientGone context.Context,
 	up <-chan openai.ChatCompletionChunk,
 	down chan<- wf.MessageEvent,
 	neo *model.Chat,
 ) {
 	defer close(down)
+	defer cancelFunc()
 	aggregator := openai.NewAggregator()
+	defer s.drainAndRecordStreamResult(ctx, up, down, neo, aggregator)
 	var stage int
 
 	for {
@@ -157,15 +206,13 @@ func (s *Service) translateAggregateSave(
 		case <-ctx.Done():
 			slog.Warn("stream interrupted", "error", ctx.Err())
 			return
+		case <-clientGone.Done():
+			slog.Warn("client gone", "error", clientGone.Err())
+			return
 		case chunk, ok := <-up:
 			if !ok {
 				if stage != 3 {
 					slog.Error("end with unexpected status", "stage", stage)
-				}
-				neo.Result = model.NewResult(aggregator)
-				if err := s.chatRepository.Save(ctx, neo); err != nil {
-					slog.Error("can not append record in stream mode", "chat", neo, "err", err)
-					down <- NewErrorMessageEvent(err)
 				}
 				return
 			}
