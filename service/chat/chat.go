@@ -164,7 +164,7 @@ func (s *Service) translateAggregateSave(
 				}
 				neo.Result = model.NewResult(aggregator)
 				if err := s.chatRepository.Save(ctx, neo); err != nil {
-					slog.Error("can not append record in stream mode", "chat", neo)
+					slog.Error("can not append record in stream mode", "chat", neo, "err", err)
 					down <- NewErrorMessageEvent(err)
 				}
 				return
