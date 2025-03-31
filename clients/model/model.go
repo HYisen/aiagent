@@ -47,7 +47,7 @@ func (s *Session) History() []openai.Message {
 
 type Chat struct {
 	ID         int `json:"-"`
-	SessionID  int
+	SessionID  int `json:"-"`
 	Input      string
 	CreateTime int64
 	Result     *Result `gorm:"foreignkey:ChatID"`
@@ -62,8 +62,8 @@ func (c *Chat) Chat() *openai.Chat {
 }
 
 type Result struct {
-	ID                int
-	ChatID            int
+	ID                int `json:"-"`
+	ChatID            int `json:"-"`
 	ChatCompletionID  string
 	Created           int64
 	Model             openai.ChatModel
