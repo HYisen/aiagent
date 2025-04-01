@@ -1,0 +1,28 @@
+name: ci
+
+on:
+  push:
+    branches-ignore: [ "master" ]
+    paths:
+      - "**.go"
+      - "go.mod"
+
+env:
+  OUTPUT_PATH: out
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: build
+        run: docker build --output=$OUTPUT_PATH .
+
+      - name: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.sha }}
+          path: out/*
+          if-no-files-found: error
