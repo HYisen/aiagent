@@ -1,8 +1,10 @@
 package ai
 
 import (
+	"aiagent/clients/openai"
 	"aiagent/console"
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -69,10 +71,20 @@ func message(eventType string, data string) (word string) {
 	case "finish":
 		return fmt.Sprintf("\nFinishReason = %s\n", data)
 	case "usage":
-		return data + "\n"
+		return data + "\n" + CostMessage(data) + "\n"
 	case "error":
 		return fmt.Sprintf("\nserver error: %s\n", data)
 	}
 	log.Fatal(fmt.Errorf("message of eventType %s: %w", eventType, errors.ErrUnsupported))
 	return "unreachable"
+}
+
+func CostMessage(data string) string {
+	var line string
+	var usage openai.Usage
+	if err := json.Unmarshal([]byte(data), &usage); err != nil {
+		line = fmt.Sprintf("err: %v", err)
+	}
+	line = "estimated cost " + NewDeepSeekReasonerPrice().Cost(OpenAIUsage(usage))
+	return line
 }
