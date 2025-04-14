@@ -105,6 +105,10 @@ func translateStream(body io.ReadCloser, output chan<- ChatCompletionChunk) erro
 
 		after, found := strings.CutPrefix(line, "data: ")
 		if !found {
+			if e, ok := tryDecode(line); ok {
+				// As I tested, such kind of line would stop the reply.
+				return e
+			}
 			return fmt.Errorf("bad format SSE data line %q", line)
 		}
 		if after == "[DONE]" {
@@ -119,6 +123,31 @@ func translateStream(body io.ReadCloser, output chan<- ChatCompletionChunk) erro
 		output <- response.ChatCompletionChunk
 	}
 	return scanner.Err()
+}
+
+func tryDecode(line string) (e *Error, ok bool) {
+	ret := &Error{}
+	if err := json.Unmarshal([]byte(line), &ret); err != nil {
+		return nil, false
+	}
+	return ret, true
+}
+
+var ErrUpstream = fmt.Errorf("upstream error")
+
+type Error struct {
+	Inner struct {
+		Message string `json:"message"`
+		Type    string `json:"type"`
+		Param   string `json:"param"`
+		Code    string `json:"code"`
+	} `json:"error"`
+}
+
+func (e Error) Is(target error) bool { return target == ErrUpstream }
+
+func (e Error) Error() string {
+	return fmt.Sprintf("%+v", e.Inner)
 }
 
 // OneShotStreamFast outputs in the channel returned, and will close it once it's done.
