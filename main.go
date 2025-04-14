@@ -8,6 +8,7 @@ import (
 	"aiagent/service"
 	"context"
 	_ "embed"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/hyisen/wf"
@@ -112,6 +113,11 @@ func (h *REPLLineHandler) HandleLine(line string) {
 		Model:    openai.ChatModelDeepSeekR1,
 	}, console.NewPrintWordChannel())
 	if err != nil {
+		if errors.Is(err, openai.ErrUpstream) {
+			log.Printf("Poped question history because of upstream error: %v", err)
+			h.history = h.history[:len(h.history)-1]
+			return
+		}
 		log.Fatal(err)
 	}
 	h.history = append(h.history, cc.Choices[0].Message.HistoryRecord())
