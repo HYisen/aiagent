@@ -6,6 +6,7 @@ on:
     paths:
       - "**.go"
       - "go.mod"
+      - "!tools/client/**" # We don't ship client at present, modifications here shall have no influence.
 
 env:
   OUTPUT_PATH: out
