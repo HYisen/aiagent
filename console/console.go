@@ -12,23 +12,32 @@ import (
 	"time"
 )
 
-func NewPrintItemChannel() chan<- openai.ChatCompletionChunk {
-	ret := make(chan openai.ChatCompletionChunk)
-	go func(ch <-chan openai.ChatCompletionChunk) {
-		for chunk := range ch {
-			fmt.Printf("%+v\n", chunk)
+func NewPrintItemChannel() chan<- openai.ChatCompletionChunkOrError {
+	ret := make(chan openai.ChatCompletionChunkOrError)
+	go func(ch <-chan openai.ChatCompletionChunkOrError) {
+		for coe := range ch {
+			if coe.Error != nil {
+				fmt.Printf("err: %v\n", coe.Error)
+				continue
+			}
+			fmt.Printf("%+v\n", coe.ChatCompletionChunk)
 		}
 		log.Println("end of print channel")
 	}(ret)
 	return ret
 }
 
-func NewPrintWordChannel() chan<- openai.ChatCompletionChunk {
-	ret := make(chan openai.ChatCompletionChunk)
-	go func(ch <-chan openai.ChatCompletionChunk) {
+func NewPrintWordChannel() chan<- openai.ChatCompletionChunkOrError {
+	ret := make(chan openai.ChatCompletionChunkOrError)
+	go func(ch <-chan openai.ChatCompletionChunkOrError) {
 		var count int
 		var cotFinished bool
 		for chunk := range ch {
+			if chunk.Error != nil {
+				fmt.Printf("err: %+v\n", chunk.Error)
+				continue
+			}
+
 			count++
 			if count == 1 {
 				deltaT := time.Now().Unix() - chunk.Created

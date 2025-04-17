@@ -73,7 +73,7 @@ func CloseAndWarnIfFail(c io.Closer) {
 
 // translateStream read and parse message body and output to channel.
 // Once it's done, both body and output would be closed.
-func translateStream(body io.ReadCloser, output chan<- ChatCompletionChunk) error {
+func translateStream(body io.ReadCloser, output chan<- ChatCompletionChunkOrError) error {
 	defer CloseAndWarnIfFail(body)
 	defer close(output)
 
@@ -107,7 +107,13 @@ func translateStream(body io.ReadCloser, output chan<- ChatCompletionChunk) erro
 		if !found {
 			if e, ok := tryDecode(line); ok {
 				// As I tested, such kind of line would stop the reply.
-				return e
+				// We put e into output rather than function's err return,
+				// because it's an acceptable upstream one,
+				// which could and should be handled on the client side.
+				// For example, as an SSE response, we can't change the HTTP Status code
+				// while outputting line by line in response. So we could just send error as okay.
+				output <- ChatCompletionChunkOrError{Error: e}
+				continue
 			}
 			return fmt.Errorf("bad format SSE data line %q", line)
 		}
@@ -120,7 +126,10 @@ func translateStream(body io.ReadCloser, output chan<- ChatCompletionChunk) erro
 		if err := json.Unmarshal([]byte(after), &response); err != nil {
 			return err
 		}
-		output <- response.ChatCompletionChunk
+		output <- ChatCompletionChunkOrError{
+			ChatCompletionChunk: response.ChatCompletionChunk,
+			Error:               nil,
+		}
 	}
 	return scanner.Err()
 }
@@ -150,12 +159,17 @@ func (e Error) Error() string {
 	return fmt.Sprintf("%+v", e.Inner)
 }
 
+type ChatCompletionChunkOrError struct {
+	ChatCompletionChunk
+	Error error
+}
+
 // OneShotStreamFast outputs in the channel returned, and will close it once it's done.
 // The choice to put output channel in parameters and return aggregated is OneShotStream.
 func (c *Client) OneShotStreamFast(
 	ctx context.Context,
 	request Request,
-) (<-chan ChatCompletionChunk, error) {
+) (<-chan ChatCompletionChunkOrError, error) {
 	body, err := c.chat(ctx, RequestWhole{
 		Request: request,
 		Stream:  true,
@@ -164,8 +178,8 @@ func (c *Client) OneShotStreamFast(
 		return nil, err
 	}
 
-	ch := make(chan ChatCompletionChunk)
-	go func(b io.ReadCloser, o chan<- ChatCompletionChunk) {
+	ch := make(chan ChatCompletionChunkOrError)
+	go func(b io.ReadCloser, o chan<- ChatCompletionChunkOrError) {
 		if err := translateStream(b, o); err != nil {
 			// Consider the outer function should have returned,
 			// my best effort would be log error here.
@@ -183,7 +197,7 @@ func (c *Client) OneShotStreamFast(
 func (c *Client) OneShotStream(
 	ctx context.Context,
 	request Request,
-	ch chan<- ChatCompletionChunk,
+	ch chan<- ChatCompletionChunkOrError,
 ) (aggregated *ChatCompletion, err error) {
 	body, err := c.chat(ctx, RequestWhole{
 		Request: request,
@@ -194,11 +208,13 @@ func (c *Client) OneShotStream(
 	}
 
 	aggregated = NewAggregator()
-	input := make(chan ChatCompletionChunk)
-	go func(a *ChatCompletion, i <-chan ChatCompletionChunk, o chan<- ChatCompletionChunk) {
+	input := make(chan ChatCompletionChunkOrError)
+	go func(a *ChatCompletion, i <-chan ChatCompletionChunkOrError, o chan<- ChatCompletionChunkOrError) {
 		defer close(o)
 		for chunk := range i {
-			a.Aggregate(chunk)
+			if chunk.Error == nil {
+				a.Aggregate(chunk.ChatCompletionChunk)
+			}
 			o <- chunk
 		}
 	}(aggregated, input, ch)

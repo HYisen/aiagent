@@ -161,7 +161,7 @@ func (s *Service) ChatStreamSimple(
 
 func (s *Service) drainStreamAndRecordValidResult(
 	ctx context.Context,
-	up <-chan openai.ChatCompletionChunk,
+	up <-chan openai.ChatCompletionChunkOrError,
 	down chan<- wf.MessageEvent,
 	neo *model.Chat,
 	aggregator *openai.ChatCompletion,
@@ -171,7 +171,7 @@ func (s *Service) drainStreamAndRecordValidResult(
 	var drainCount int
 	for chunk := range up {
 		drainCount++
-		aggregator.Aggregate(chunk)
+		aggregator.Aggregate(chunk.ChatCompletionChunk)
 	}
 
 	if aggregator.Valid() {
@@ -194,7 +194,7 @@ func (s *Service) translateAggregateSave(
 	ctx context.Context,
 	cancelFunc context.CancelFunc,
 	clientGone context.Context,
-	up <-chan openai.ChatCompletionChunk,
+	up <-chan openai.ChatCompletionChunkOrError,
 	down chan<- wf.MessageEvent,
 	neo *model.Chat,
 ) {
@@ -212,13 +212,18 @@ func (s *Service) translateAggregateSave(
 		case <-clientGone.Done():
 			slog.Warn("client gone", "error", clientGone.Err())
 			return
-		case chunk, ok := <-up:
+		case coe, ok := <-up:
 			if !ok {
 				if stage != 3 {
 					slog.Error("end with unexpected status", "stage", stage)
 				}
 				return
 			}
+			if coe.Error != nil {
+				down <- NewErrorMessageEvent(coe.Error)
+				continue
+			}
+			chunk := coe.ChatCompletionChunk
 			aggregator.Aggregate(chunk)
 			switch stage {
 			case 0:
