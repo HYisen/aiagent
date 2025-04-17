@@ -80,11 +80,9 @@ func message(eventType string, data string) (word string) {
 }
 
 func CostMessage(data string) string {
-	var line string
 	var usage openai.Usage
 	if err := json.Unmarshal([]byte(data), &usage); err != nil {
-		line = fmt.Sprintf("err: %v", err)
+		return fmt.Sprintf("err: %v", err)
 	}
-	line = "estimated cost " + NewDeepSeekReasonerPrice().Cost(OpenAIUsage(usage))
-	return line
+	return "estimated cost " + NewDeepSeekReasonerPrice().Cost(OpenAIUsage(usage))
 }
