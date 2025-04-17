@@ -74,6 +74,13 @@ type ChatCompletion struct {
 	Usage   Usage    `json:"usage"`
 }
 
+func (cc *ChatCompletion) Valid() bool {
+	// Zero value is not valid. But NewAggregator does not create an empty one.
+	// According to observed stream behaviour, Role is the first field to be fulfilled,
+	// whose empty indicates a no data result.
+	return len(cc.Choices) > 0 && cc.Choices[0].Message.Role != ""
+}
+
 // NewAggregator creates an *ChatCompletion for aggregation of ChatCompletionChunk.
 // Itself would become a complete ChatCompletion once every ChatCompletionChunk in stream mode is aggregated.
 func NewAggregator() *ChatCompletion {

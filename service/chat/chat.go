@@ -159,7 +159,7 @@ func (s *Service) ChatStreamSimple(
 	return down, nil
 }
 
-func (s *Service) drainAndRecordStreamResult(
+func (s *Service) drainStreamAndRecordValidResult(
 	ctx context.Context,
 	up <-chan openai.ChatCompletionChunk,
 	down chan<- wf.MessageEvent,
@@ -174,14 +174,17 @@ func (s *Service) drainAndRecordStreamResult(
 		aggregator.Aggregate(chunk)
 	}
 
-	neo.Result = model.NewResult(aggregator)
-	if err := s.chatRepository.Save(ctx, neo); err != nil {
-		slog.Error("can not append record in stream mode", "chat", neo, "err", err)
-		// If up can be drained, most likely client has gone, and down is not writeable.
-		if drainCount == 0 {
-			down <- NewErrorMessageEvent(err)
+	if aggregator.Valid() {
+		neo.Result = model.NewResult(aggregator)
+		if err := s.chatRepository.Save(ctx, neo); err != nil {
+			slog.Error("can not append record in stream mode", "chat", neo, "err", err)
+			// If up can be drained, most likely client has gone, and down is not writeable.
+			if drainCount == 0 {
+				down <- NewErrorMessageEvent(err)
+			}
 		}
 	}
+
 	if drainCount > 0 {
 		slog.Info("client has gone but the result is saved", "drained", drainCount)
 	}
@@ -198,7 +201,7 @@ func (s *Service) translateAggregateSave(
 	defer close(down)
 	defer cancelFunc()
 	aggregator := openai.NewAggregator()
-	defer s.drainAndRecordStreamResult(ctx, up, down, neo, aggregator)
+	defer s.drainStreamAndRecordValidResult(ctx, up, down, neo, aggregator)
 	var stage int
 
 	for {
