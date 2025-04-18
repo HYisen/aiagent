@@ -38,18 +38,24 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
+      - name: Checkout Actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+
       - name: Login
         id: login
         uses: ./.github/actions/amah-login
         with:
-          endpoint: ${{ env.AMAH_ENDPOINT }}
+          endpoint: ${{ vars.AMAH_ENDPOINT }}
           password: ${{ secrets.AMAH_PASSWORD }}
           username: ${{ secrets.AMAH_USERNAME }}
 
       - name: Deploy
         uses: ./.github/actions/amah-deploy
         with:
-          appid: ${{ env.APPID }}
+          appid: ${{ vars.APPID }}
           artifact-id: ${{ needs.build.outputs.artifact-id }}
-          endpoint: ${{ env.AMAH_ENDPOINT }}
+          endpoint: ${{ vars.AMAH_ENDPOINT }}
           token: ${{ steps.login.outputs.token }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}

@@ -23,6 +23,12 @@ inputs:
   appid:
     description: The Application ID on which to deploy.
     required: true
+  github-token:
+    description: |
+      The token used by amah to download the GitHub artifact to be deployed. See
+      https://docs.github.com/en/rest/actions/artifacts?apiVersion=2022-11-28#download-an-artifact
+      for requirement and generate method.
+    required: true
 
 runs:
   using: composite
@@ -30,29 +36,29 @@ runs:
     - name: Stop
       uses: fjogeleit/http-request-action@v1.16.4
       with:
-        url: ${{ inputs.endpoint }}/v1/applications/${{ inputs.appid }}/instances
+        url: "${{ inputs.endpoint }}/v1/applications/${{ inputs.appid }}/instances"
         method: DELETE
-        customHeaders: '{"Token": ${{ inputs.token }}}'
+        customHeaders: '{"Token": "${{ inputs.token }}"}'
         ignoreStatusCodes: '404' # ignore if stopped
         timeout: 10000
     - name: Deploy
       uses: fjogeleit/http-request-action@v1.16.4
       with:
-        url: ${{ inputs.endpoint }}/v1/applications/${{ inputs.appid }}
+        url: "${{ inputs.endpoint }}/v1/applications/${{ inputs.appid }}"
         method: PUT
-        customHeaders: '{"Token": ${{ inputs.token }}}'
+        customHeaders: '{"Token": "${{ inputs.token }}"}'
         data: >-
           { 
           "Owner": "${{ inputs.owner }}",
           "Repo": "${{ inputs.repo }}",
-          "ArtifactID": "${{ inputs.artifact-id }}",
-          "AccessToken": "${{ secrets.GITHUB_TOKEN }}"
+          "ArtifactID": ${{ inputs.artifact-id }},
+          "AccessToken": "${{ inputs.github-token }}"
           }
         timeout: 60000
     - name: Start
       uses: fjogeleit/http-request-action@v1.16.4
       with:
-        url: ${{ inputs.endpoint }}/v1/applications/${{ inputs.appid }}/instances
+        url: "${{ inputs.endpoint }}/v1/applications/${{ inputs.appid }}/instances"
         method: PUT
-        customHeaders: '{"Token": ${{ inputs.token }}}'
+        customHeaders: '{"Token": "${{ inputs.token }}"}'
         timeout: 10000

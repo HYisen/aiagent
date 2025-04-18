@@ -25,8 +25,8 @@ runs:
       id: request
       uses: fjogeleit/http-request-action@v1.16.4
       with:
-        url: ${{ inputs.endpoint }}/v1/session
-        data: { "username": "${{ inputs.username }}","password": "${{ inputs.password }}" }
+        url: "${{ inputs.endpoint }}/v1/session"
+        data: '{ "username": "${{ inputs.username }}","password": "${{ inputs.password }}" }'
         maskResponse: 'true'
         timeout: 10000
     - name: Print
