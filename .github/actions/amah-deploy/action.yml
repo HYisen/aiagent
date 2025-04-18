@@ -1,0 +1,58 @@
+name: amah Deploy
+author: HYisen
+description: GitHub Action to deploy an application on an amah server.
+
+inputs:
+  endpoint:
+    description: The URL where target amah instance serves.
+    required: true
+  token:
+    description: Token to authorize yourself. Can be generated through amah-login.
+    required: true
+  owner:
+    description: Owner of the GitHub Artifact to be deployed.
+    default: ${{ github.repository_owner }}
+    required: false
+  repo:
+    description: Repository of the GitHub Artifact to be deployed.
+    default: ${{ github.event.repository.name }}
+    required: false
+  artifact-id:
+    description: ArtifactID of that to be deployed.
+    required: true
+  appid:
+    description: The Application ID on which to deploy.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Stop
+      uses: fjogeleit/http-request-action@v1.16.4
+      with:
+        url: ${{ inputs.endpoint }}/v1/applications/${{ inputs.appid }}/instances
+        method: DELETE
+        customHeaders: '{"Token": ${{ inputs.token }}}'
+        ignoreStatusCodes: '404' # ignore if stopped
+        timeout: 10000
+    - name: Deploy
+      uses: fjogeleit/http-request-action@v1.16.4
+      with:
+        url: ${{ inputs.endpoint }}/v1/applications/${{ inputs.appid }}
+        method: PUT
+        customHeaders: '{"Token": ${{ inputs.token }}}'
+        data: >-
+          { 
+          "Owner": "${{ inputs.owner }}",
+          "Repo": "${{ inputs.repo }}",
+          "ArtifactID": "${{ inputs.artifact-id }}",
+          "AccessToken": "${{ secrets.GITHUB_TOKEN }}"
+          }
+        timeout: 60000
+    - name: Start
+      uses: fjogeleit/http-request-action@v1.16.4
+      with:
+        url: ${{ inputs.endpoint }}/v1/applications/${{ inputs.appid }}/instances
+        method: PUT
+        customHeaders: '{"Token": ${{ inputs.token }}}'
+        timeout: 10000
