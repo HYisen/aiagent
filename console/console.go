@@ -92,7 +92,7 @@ type Controller struct {
 	opts    Options
 }
 
-// NewController creates *Controller, use NewDefaultOptions to provide a workable opts or make it yourself.
+// NewController creates *[Controller], use [NewDefaultOptions] to provide a workable opts or make it yourself.
 func NewController(handler LineHandler, opts Options) *Controller {
 	return &Controller{handler: handler, opts: opts}
 }

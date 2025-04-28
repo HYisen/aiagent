@@ -73,7 +73,7 @@ func (r *Repository) Create(ctx context.Context, userID int, name string) error 
 		var scopedID int
 		if len(users) == 0 {
 			// 404 means we have lost synchronization with its user-auth module,
-			// which could be a designed behaviour as lazy sync.
+			// which could be a designed behavior as lazy sync.
 			// Because it passed auth, here we trust it. Create a place-holder user.
 			if err := tx.User.WithContext(ctx).Create(&model.User{
 				ID:               userID,
@@ -119,9 +119,9 @@ func (r *Repository) FindLastByUserIDAndName(ctx context.Context, userID int, na
 
 // AppendChat is unsupported yet.
 func (r *Repository) AppendChat(_ context.Context, _ int, _ *model.Chat) error {
-	// the implementation is dropped because upstream lacks feature of append with cascading associations
-	// ref https://github.com/go-gorm/gen/issues/1242
-	// in short, the flowing commented code would fail with nil chat.Result in DB
+	// The implementation is dropped because upstream lacks the feature of appending with cascading associations
+	// See https://github.com/go-gorm/gen/issues/1242
+	// In short, the flowing commented code would fail with nil chat.Result in DB.
 	// return r.q.Session.Chats.WithContext(ctx).Model(&model.Session{ID: sessionID}).Append(chat)
 	return fmt.Errorf("AppendChat %w", errors.ErrUnsupported)
 }

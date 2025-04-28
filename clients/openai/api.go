@@ -39,8 +39,8 @@ func NewUserMessage(content string) Message {
 	}
 }
 
-// HistoryRecord on item in Response converts it to Request.
-// At present, it drops CoT field as the requirement from
+// HistoryRecord on an item in [Response] converts it to that in [Request].
+// At present, it drops the CoT field as the requirement from
 // https://api-docs.deepseek.com/guides/reasoning_model#multi-round-conversation
 func (m Message) HistoryRecord() Message {
 	return Message{
@@ -101,7 +101,7 @@ func (cc *ChatCompletion) Aggregate(chunk ChatCompletionChunk) {
 	}
 
 	if len(chunk.Choices) != 1 || len(cc.Choices) != 1 {
-		// I have never seen such kind of response, just not supported yet.
+		// I have never seen such kind of responses, just not supported yet.
 		// Won't happen unless the source code here is implemented wrong.
 		panic(fmt.Errorf(
 			"aggregate ChatCompletion with not single choices %d %d: %w",
@@ -116,7 +116,7 @@ func (cc *ChatCompletion) Aggregate(chunk ChatCompletionChunk) {
 		cc.Choices[0].FinishReason = *neo.FinishReason
 	}
 	// Ignore field Index because all of them are zero, as long as previous len(choices) assert passed.
-	// null string in Message JSON is decoded to "", thus safe to join.
+	// It is safe to join because null strings in Message JSON are decoded to "".
 	cc.Choices[0].Message.Role += neo.Delta.Role
 	cc.Choices[0].Message.Content += neo.Delta.Content
 	cc.Choices[0].Message.ReasoningContent += neo.Delta.ReasoningContent
@@ -152,14 +152,14 @@ type Choice struct {
 	Index        int          `json:"index"`
 	Message      Message      `json:"message"`
 	FinishReason FinishReason `json:"finish_reason,omitempty"`
-	// field logprobs is ignored as it's null as long as I have not supported to require it in Request yet
+	// field logprobs is ignored as it's null as long as I have not supported requiring it in Request yet
 }
 
 type ChunkChoice struct {
 	Index        int           `json:"index"`
 	Delta        Message       `json:"delta"`
 	FinishReason *FinishReason `json:"finish_reason,omitempty"`
-	// field logprobs is ignored as it's null as long as I have not supported to require it in Request yet
+	// field logprobs is ignored as it's null as long as I have not supported requiring it in Request yet
 }
 
 type Usage struct {

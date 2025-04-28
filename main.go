@@ -62,7 +62,7 @@ func migrate() {
 	}
 
 	// migrate from go source code works, but I choose to leave it in SQL, making it more friendly to developers.
-	// following code lacks index creation, but shall work in a lower level.
+	// the following code lacks index creation but shall work in a lower level.
 	// db.AutoMigrate(&model.Chat{}, &model.Session{}, &model.Result{})
 
 	if err := db.Exec(ddlSQL).Error; err != nil {
@@ -89,7 +89,7 @@ func server() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	wf.SetTimeout(120 * time.Second) // LLM is relative slow. 1 minute not enough as timeout happened in normal stream.
+	wf.SetTimeout(120 * time.Second) // LLM is slow, 1 minute not enough as timeout happened in normal stream.
 	err = http.ListenAndServe(local.Host, s)
 	if err != nil {
 		log.Fatal(err)
