@@ -11,4 +11,5 @@ type Client interface {
 	// UpgradeOptional return nil Client and nil error when does not support upgrade,
 	// otherwise a receiver's replacement.
 	UpgradeOptional() (neo Client, err error)
+	ListSessions() (idToName map[int]string, err error)
 }

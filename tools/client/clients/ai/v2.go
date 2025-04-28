@@ -19,6 +19,11 @@ type V2Client struct {
 	userID        int
 }
 
+func (c *V2Client) ListSessions() (map[int]string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func NewV2Client(endpoint string, tokenProvider TokenProvider, userID int) *V2Client {
 	return &V2Client{endpoint: endpoint, tokenProvider: tokenProvider, userID: userID}
 }
