@@ -19,10 +19,10 @@ func transform(body io.ReadCloser, output chan<- string) {
 	}()
 
 	// The implementation here follows the guideline, in some way.
-	// ref https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
-	// Differences (no difference as my server don't use them)
-	// - Assume there is always a nice space after :.
-	// - Field name "id" and "retry" not supported.
+	// See https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation.
+	// Differences (no difference as my server doesn't use them)
+	// - Assume there is always a nice space after `:`.
+	// - Field name "id" and "retry" are not supported.
 	scanner := bufio.NewScanner(body)
 	eventType := ""
 	var data string

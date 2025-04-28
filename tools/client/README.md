@@ -1,13 +1,13 @@
 # client
 
-client is a client that attach aiagent server mode.
+client is a client that attaches aiagent server mode.
 
 Simulate aiagent REPL mode user experience.
 
 Its goal is to help me debug aiagent server mode, especially of chat stream API.
 
-Not supposed to become a full-fledged client. Therefor, most server API and
-not hard-coded configs would not be supported.
+Not supposed to become a full-fledged client.
+Therefore, most server API and not hard-coded configs would not be supported.
 
 ## Usage
 
