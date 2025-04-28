@@ -83,17 +83,17 @@ func translateStream(body io.ReadCloser, output chan<- ChatCompletionChunkOrErro
 
 	for scanner.Scan() {
 		// I have tried pulling parseTrunkData to lower Cyclomatic Complexity.
-		// Blaming the done control, it's pull 5 and leave extra 2 CC in place,
-		// which helps little. In the end I decided to leave the complexity here.
+		// Blaming the done control, it's pulling 5 but leaving an extra 2 CC in place;
+		// In the end, I decided to leave the complexity here.
 
 		// The prefix data: and done check never works while I am developing their handler.
 		// Comparing to len(choices), they are more likely to change on the server side.
 		// Maybe I shall make them warnings once triggered,
-		// implementing best-effort strategy in the cost of sensitivity.
+		// implementing a best-effort strategy in the cost of sensitivity.
 
 		line := scanner.Text()
 		// ref https://api-docs.deepseek.com/faq#why-are-empty-lines-continuously-returned-when-calling-the-api
-		// The ignore behaviour is also required by SSE, while other cases HasPrefix : are not respected.
+		// The ignored behavior is also required by SSE, while other cases HasPrefix `:` are not respected.
 		// ref https://html.spec.whatwg.org/multipage/server-sent-events.html#parsing-an-event-stream
 		if line == ": keep-alive" {
 			continue
@@ -108,10 +108,11 @@ func translateStream(body io.ReadCloser, output chan<- ChatCompletionChunkOrErro
 			if e, ok := tryDecode(line); ok {
 				// As I tested, such kind of line would stop the reply.
 				// We put e into output rather than function's err return,
-				// because it's an acceptable upstream one,
+				// because it's acceptable upstream,
 				// which could and should be handled on the client side.
 				// For example, as an SSE response, we can't change the HTTP Status code
-				// while outputting line by line in response. So we could just send error as okay.
+				// while outputting line by line in response.
+				// So we could just send errors as okay.
 				output <- ChatCompletionChunkOrError{Error: e}
 				continue
 			}
@@ -164,8 +165,8 @@ type ChatCompletionChunkOrError struct {
 	Error error
 }
 
-// OneShotStreamFast outputs in the channel returned, and will close it once it's done.
-// The choice to put output channel in parameters and return aggregated is OneShotStream.
+// OneShotStreamFast outputs in the channel returned and will close it once it's done.
+// The choice to put the output channel in parameters and return aggregated is [OneShotStream].
 func (c *Client) OneShotStreamFast(
 	ctx context.Context,
 	request Request,
@@ -190,10 +191,11 @@ func (c *Client) OneShotStreamFast(
 	return ch, nil
 }
 
-// OneShotStream use ch as chunk output, and will close it when it's done.
-// It uses one parameter as an output, because aggregated generates slowly.
-// If put ch in output, considering first chunk may be tens of seconds earlier than aggregated,
-// users would have to aggregate themselves. And that is OneShotStreamFast.
+// OneShotStream use ch as chunk output and will close it when it's done.
+// It uses one parameter as an output because aggregated generates slowly.
+// If put ch in output, considering the first chunk may be tens of seconds earlier than aggregated,
+// users would have to aggregate themselves.
+// And that is [OneShotStreamFast].
 func (c *Client) OneShotStream(
 	ctx context.Context,
 	request Request,
@@ -232,11 +234,11 @@ func (c *Client) OneShotStream(
 // The end-of-event marker is actually an end-of-line marker of a normal line and an empty line which
 // indicates dispatch the event in SSE.
 //
-// The function is copied from bufio.ScanLines and then modified. The differences are
-// 1. no dropCR as it's LF rather than CRLF or anything else on the server side at present.
-// 2. find index of "\n\n" rather than "\n", and return advance matches.
+// The function is copied from [bufio.ScanLines] and then modified. The differences are
+// 1. No dropCR as it's LF rather than CRLF or anything else on the server side at present.
+// 2. Find index of "\n\n" rather than "\n", and return advance matches.
 //
-// ref https://html.spec.whatwg.org/multipage/server-sent-events.html#server-sent-events
+// See https://html.spec.whatwg.org/multipage/server-sent-events.html#server-sent-events
 func ScanDoubleNewLine(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	if atEOF && len(data) == 0 {
 		return 0, nil, nil

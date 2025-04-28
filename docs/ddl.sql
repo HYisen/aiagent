@@ -1,6 +1,6 @@
 -- This file is designed to be run in migrate procedure. Keep it clean.
--- The whole file is injected into binary code through template during compiling.
--- It's developer's duty to keep the content synced with that in other sql docs.
+-- The whole file is injected into binary code through embed during compiling.
+-- It's the developer's duty to keep the content synced with that in other SQL docs.
 
 CREATE TABLE sessions
 (
