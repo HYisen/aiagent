@@ -64,6 +64,18 @@ func (h *ChatLineHandler) createSession() (idOrScopedID int, err error) {
 }
 
 func (h *ChatLineHandler) HandleLine(line string) {
+	if line == ":ls" {
+		idToName, err := h.client.ListSessions()
+		if err != nil {
+			fmt.Printf("server error: %v\n", err)
+			return
+		}
+		for id, name := range idToName {
+			fmt.Printf("%d\t%s\n", id, name)
+		}
+		return
+	}
+
 	isInitLine, createSession, id := checkAndParseInitLine(line)
 	if !isInitLine && !h.initialized {
 		fmt.Printf(`Type "%s" to initialize.
