@@ -89,7 +89,10 @@ func server() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	wf.SetTimeout(120 * time.Second) // LLM is slow, 1 minute not enough as timeout happened in normal stream.
+	// Notably, chat APIs timeout is controlled separately else where.
+	// As I sampled, it's normally about 900 ms,
+	// so we extend the default timeout to 2000 ms to cover most cases.
+	wf.SetTimeout(2000 * time.Millisecond)
 	err = http.ListenAndServe(local.Host, s)
 	if err != nil {
 		log.Fatal(err)

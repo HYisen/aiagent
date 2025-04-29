@@ -1,12 +1,14 @@
-@userId=1
+@userId=1000
 
 ### FindSessions
 
 GET {{host}}/v2/users/{{userId}}/sessions
+Token: {{token}}
 
 ### CreateSession
 
 POST {{host}}/v2/users/{{userId}}/sessions
+Token: {{token}}
 
 > {%
     // It just exists.
@@ -17,10 +19,12 @@ POST {{host}}/v2/users/{{userId}}/sessions
 ### v2GetSession
 
 GET {{host}}/v2/users/{{userId}}/sessions/{{scopedId}}
+Token: {{token}}
 
 ### v2PostSessionChat
 
 POST {{host}}/v2/users/{{userId}}/sessions/{{scopedId}}/chat
+Token: {{token}}
 
 {
   "content": "say this is a test",
@@ -30,6 +34,7 @@ POST {{host}}/v2/users/{{userId}}/sessions/{{scopedId}}/chat
 ### v2PostSessionChatStream
 
 POST {{host}}/v2/users/{{userId}}/sessions/{{scopedId}}/chat?stream=true
+Token: {{token}}
 
 {
   "content": "say this is a test",
