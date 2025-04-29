@@ -2,6 +2,7 @@ package ai
 
 import (
 	"aiagent/clients/model"
+	"aiagent/clients/openai"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -20,8 +21,38 @@ type V2Client struct {
 }
 
 func (c *V2Client) ListSessions() (map[int]string, error) {
-	//TODO implement me
-	panic("implement me")
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v2/users/%d/sessions", c.endpoint, c.userID), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	c.AttachToken(req)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer openai.CloseAndWarnIfFail(resp.Body)
+
+	return verifyParseExtract[v2Session](resp)
+}
+
+type Session interface {
+	Key() int
+	Value() string
+}
+
+type v2Session struct {
+	ScopedID int
+	Name     string
+}
+
+func (s v2Session) Key() int {
+	return s.ScopedID
+}
+
+func (s v2Session) Value() string {
+	return s.Name
 }
 
 func NewV2Client(endpoint string, tokenProvider TokenProvider, userID int) *V2Client {

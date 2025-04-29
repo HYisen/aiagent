@@ -33,13 +33,7 @@ func VerifyStatusReadBodyOnFail(resp *http.Response) error {
 	return fmt.Errorf("unexpected http status code %d: %s", resp.StatusCode, string(data))
 }
 
-func (c *V1Client) ListSessions() (map[int]string, error) {
-	resp, err := http.Get(c.endpoint + "/v1/sessions")
-	if err != nil {
-		return nil, err
-	}
-	defer openai.CloseAndWarnIfFail(resp.Body)
-
+func verifyParseExtract[ItemType Session](resp *http.Response) (idToName map[int]string, err error) {
 	if err := VerifyStatusReadBodyOnFail(resp); err != nil {
 		return nil, err
 	}
@@ -49,20 +43,39 @@ func (c *V1Client) ListSessions() (map[int]string, error) {
 		return nil, err
 	}
 
-	type session struct {
-		ID   int
-		Name string
-	}
-	var items []session
+	var items []ItemType
 	if err := json.Unmarshal(data, &items); err != nil {
 		return nil, err
 	}
 
-	idToName := make(map[int]string)
+	idToName = make(map[int]string)
 	for _, item := range items {
-		idToName[item.ID] = item.Name
+		idToName[item.Key()] = item.Value()
 	}
 	return idToName, nil
+}
+
+type v1Session struct {
+	ID   int
+	Name string
+}
+
+func (s v1Session) Key() int {
+	return s.ID
+}
+
+func (s v1Session) Value() string {
+	return s.Name
+}
+
+func (c *V1Client) ListSessions() (map[int]string, error) {
+	resp, err := http.Get(c.endpoint + "/v1/sessions")
+	if err != nil {
+		return nil, err
+	}
+	defer openai.CloseAndWarnIfFail(resp.Body)
+
+	return verifyParseExtract[v1Session](resp)
 }
 
 func NewClient(endpoint string) *V1Client {
