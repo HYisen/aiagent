@@ -19,6 +19,11 @@ type V2Client struct {
 	userID        int
 }
 
+func (c *V2Client) ListSessions() (map[int]string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func NewV2Client(endpoint string, tokenProvider TokenProvider, userID int) *V2Client {
 	return &V2Client{endpoint: endpoint, tokenProvider: tokenProvider, userID: userID}
 }
@@ -62,8 +67,8 @@ func (c *V2Client) Chat(sessionScopedID int, content string) (words <-chan strin
 }
 
 // AttachToken add token header to req with token from c.tokenProvider.
-// This behaviour shall be privileged and limited, thus I drop the other path that
-// feature Client with a http.Client which has http.RoundTripper that automatically gets and attaches token.
+// This behavior shall be privileged and limited, thus I drop the other path that
+// features Client with an http.Client which has http.RoundTripper that automatically gets and attaches token.
 func (c *V2Client) AttachToken(req *http.Request) {
 	token, err := c.tokenProvider.GetToken()
 	if err != nil {

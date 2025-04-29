@@ -1,0 +1,61 @@
+name: ci
+
+on:
+  push:
+    branches-ignore: [ "master" ]
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "Dockerfile"
+      - ".github/**"
+      - "!tools/client/**" # We don't ship clients at present, modifications here shall have no influence.
+
+env:
+  OUTPUT_PATH: out
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: docker build --output=$OUTPUT_PATH .
+
+      - name: Archive
+        id: archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.sha }}
+          path: out/*
+          if-no-files-found: error
+    outputs:
+      artifact-id: ${{ steps.archive.outputs.artifact-id }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout Actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+
+      - name: Login
+        id: login
+        uses: ./.github/actions/amah-login
+        with:
+          endpoint: ${{ vars.AMAH_ENDPOINT }}
+          password: ${{ secrets.AMAH_PASSWORD }}
+          username: ${{ secrets.AMAH_USERNAME }}
+
+      - name: Deploy
+        uses: ./.github/actions/amah-deploy
+        with:
+          appid: ${{ vars.APPID }}
+          artifact-id: ${{ needs.build.outputs.artifact-id }}
+          endpoint: ${{ vars.AMAH_ENDPOINT }}
+          token: ${{ steps.login.outputs.token }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}

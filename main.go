@@ -8,6 +8,7 @@ import (
 	"aiagent/service"
 	"context"
 	_ "embed"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/hyisen/wf"
@@ -61,7 +62,7 @@ func migrate() {
 	}
 
 	// migrate from go source code works, but I choose to leave it in SQL, making it more friendly to developers.
-	// following code lacks index creation, but shall work in a lower level.
+	// the following code lacks index creation but shall work in a lower level.
 	// db.AutoMigrate(&model.Chat{}, &model.Session{}, &model.Result{})
 
 	if err := db.Exec(ddlSQL).Error; err != nil {
@@ -88,7 +89,10 @@ func server() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	wf.SetTimeout(120 * time.Second) // LLM is relative slow. 1 minute not enough as timeout happened in normal stream.
+	// Notably, chat APIs timeout is controlled separately else where.
+	// As I sampled, it's normally about 900 ms,
+	// so we extend the default timeout to 2000 ms to cover most cases.
+	wf.SetTimeout(2000 * time.Millisecond)
 	err = http.ListenAndServe(local.Host, s)
 	if err != nil {
 		log.Fatal(err)
@@ -112,6 +116,11 @@ func (h *REPLLineHandler) HandleLine(line string) {
 		Model:    openai.ChatModelDeepSeekR1,
 	}, console.NewPrintWordChannel())
 	if err != nil {
+		if errors.Is(err, openai.ErrUpstream) {
+			log.Printf("Poped question history because of upstream error: %v", err)
+			h.history = h.history[:len(h.history)-1]
+			return
+		}
 		log.Fatal(err)
 	}
 	h.history = append(h.history, cc.Choices[0].Message.HistoryRecord())

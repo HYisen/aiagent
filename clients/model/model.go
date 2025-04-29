@@ -1,7 +1,7 @@
 // Package model stores models used by gen.
-// It's not mandatory, just comparing to the other choice to implements GenInternalDoName for many times,
+// It's not mandatory; just comparing to the other choice to implement GenInternalDoName for many times,
 // I would rather pull all the structs needed together here.
-// ref https://github.com/go-gorm/gen/issues/971
+// See https://github.com/go-gorm/gen/issues/971
 package model
 
 import (
@@ -47,7 +47,7 @@ func (s *Session) History() []openai.Message {
 
 type Chat struct {
 	ID         int `json:"-"`
-	SessionID  int
+	SessionID  int `json:"-"`
 	Input      string
 	CreateTime int64
 	Result     *Result `gorm:"foreignkey:ChatID"`
@@ -62,8 +62,8 @@ func (c *Chat) Chat() *openai.Chat {
 }
 
 type Result struct {
-	ID                int
-	ChatID            int
+	ID                int `json:"-"`
+	ChatID            int `json:"-"`
 	ChatCompletionID  string
 	Created           int64
 	Model             openai.ChatModel

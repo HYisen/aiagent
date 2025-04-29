@@ -1,8 +1,10 @@
 package ai
 
 import (
+	"aiagent/clients/openai"
 	"aiagent/console"
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -17,10 +19,10 @@ func transform(body io.ReadCloser, output chan<- string) {
 	}()
 
 	// The implementation here follows the guideline, in some way.
-	// ref https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
-	// Differences (no difference as my server don't use them)
-	// - Assume there is always a nice space after :.
-	// - Field name "id" and "retry" not supported.
+	// See https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation.
+	// Differences (no difference as my server doesn't use them)
+	// - Assume there is always a nice space after `:`.
+	// - Field name "id" and "retry" are not supported.
 	scanner := bufio.NewScanner(body)
 	eventType := ""
 	var data string
@@ -69,10 +71,18 @@ func message(eventType string, data string) (word string) {
 	case "finish":
 		return fmt.Sprintf("\nFinishReason = %s\n", data)
 	case "usage":
-		return data + "\n"
+		return data + "\n" + CostMessage(data) + "\n"
 	case "error":
 		return fmt.Sprintf("\nserver error: %s\n", data)
 	}
 	log.Fatal(fmt.Errorf("message of eventType %s: %w", eventType, errors.ErrUnsupported))
 	return "unreachable"
+}
+
+func CostMessage(data string) string {
+	var usage openai.Usage
+	if err := json.Unmarshal([]byte(data), &usage); err != nil {
+		return fmt.Sprintf("err: %v", err)
+	}
+	return "estimated cost " + NewDeepSeekReasonerPrice().Cost(OpenAIUsage(usage))
 }

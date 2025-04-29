@@ -1,0 +1,34 @@
+name: amah Login
+author: HYisen
+description: GitHub Action to login against an amah server.
+
+inputs:
+  endpoint:
+    description: The URL where target amah instance serves.
+    required: true
+  username:
+    description: Username of account on target.
+    required: true
+  password:
+    description: Password of account on target.
+    required: true
+
+outputs:
+  token:
+    description: The token ID generated to be used.
+    value: ${{ fromJSON(steps.request.outputs.response).ID }}
+
+runs:
+  using: composite
+  steps:
+    - name: Fetch
+      id: request
+      uses: fjogeleit/http-request-action@v1.16.4
+      with:
+        url: "${{ inputs.endpoint }}/v1/session"
+        data: '{ "username": "${{ inputs.username }}","password": "${{ inputs.password }}" }'
+        maskResponse: 'true'
+        timeout: 10000
+    - name: Print
+      run: echo ${{ fromJSON(steps.request.outputs.response).ExpireAt }}
+      shell: bash

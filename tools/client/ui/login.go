@@ -8,14 +8,13 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"syscall"
 	"time"
 )
 
 func loginTerminal() (username string, password string, err error) {
-	oldState, err := term.MakeRaw(syscall.Stdin)
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	defer func() {
-		err = errors.Join(err, term.Restore(syscall.Stdin, oldState))
+		err = errors.Join(err, term.Restore(int(os.Stdin.Fd()), oldState))
 	}()
 
 	screen := struct {
@@ -53,7 +52,7 @@ func loginFallback() (username string, password string, err error) {
 }
 
 func isTerminal() bool {
-	return term.IsTerminal(syscall.Stdin) && term.IsTerminal(syscall.Stdout)
+	return term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd()))
 }
 
 func Login() (username string, password string, err error) {
