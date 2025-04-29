@@ -10,6 +10,7 @@ import (
 	"github.com/hyisen/wf"
 	"net/http"
 	"reflect"
+	"time"
 )
 
 type Service struct {
@@ -21,6 +22,13 @@ type Service struct {
 
 func (s *Service) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	s.web.ServeHTTP(writer, request)
+}
+
+// chatTimeout provides a timeout that shall be used over chat APIs,
+// which are typically much longer than normal ones.
+func chatTimeout() time.Duration {
+	// LLM is slow, 1 minute not enough as timeout happened in normal stream.
+	return 120 * time.Second
 }
 
 func New(
@@ -90,6 +98,7 @@ func New(
 		json.Marshal,
 		wf.JSONContentType,
 	)
+	v1PostSessionChat.Timeout = chatTimeout()
 	v1PostSessionChatStream := wf.NewServerSentEventsHandler(
 		func(req *http.Request) bool {
 			if !v1PostSessionChatMatcher(req) {
@@ -102,6 +111,7 @@ func New(
 			return ret.chatService.ChatStreamSimple(ctx, req.([]any)[0].(int), req.([]any)[1].(*sc.RequestPayload))
 		},
 	)
+	v1PostSessionChatStream.Timeout = chatTimeout()
 
 	v2SessionsPathSuffix := "/sessions"
 	v2GetSessions := wf.NewClosureHandler(
@@ -177,6 +187,7 @@ func New(
 		json.Marshal,
 		wf.JSONContentType,
 	)
+	v2PostSessionChat.Timeout = chatTimeout()
 	v2PostSessionChatStream := wf.NewServerSentEventsHandler(
 		wf.MatchAll(v2PostSessionChatPathMatcher, wf.HasQuery("stream", "true")),
 		v2PostSessionChatParser,
@@ -184,6 +195,7 @@ func New(
 			return ret.chatService.ChatStream(ctx, req.(*sc.Request))
 		},
 	)
+	v2PostSessionChatStream.Timeout = chatTimeout()
 
 	ret.web = wf.NewWeb(
 		false,
