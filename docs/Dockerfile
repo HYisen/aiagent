@@ -39,7 +39,7 @@ COPY . /app
 WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/go-build \
   /usr/local/go/bin/go mod download
-RUN /usr/local/go/bin/go run tools/gen/main.go # generate generated code
+RUN /usr/local/go/bin/go generate ./...
 RUN /usr/local/go/bin/go build
 
 FROM scratch

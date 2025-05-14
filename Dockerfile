@@ -9,7 +9,7 @@ WORKDIR /app
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/go-build \
   go mod download
-RUN go run tools/gen/main.go
+RUN go generate ./...
 RUN env CGO_ENABLED=1 go build -ldflags '-extldflags "-static"'
 
 FROM scratch

@@ -2,6 +2,9 @@
 // It's not mandatory; just comparing to the other choice to implement GenInternalDoName for many times,
 // I would rather pull all the structs needed together here.
 // See https://github.com/go-gorm/gen/issues/971
+
+//go:generate go run gen.go
+
 package model
 
 import (

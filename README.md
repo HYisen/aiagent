@@ -8,7 +8,9 @@ A server side app that provides HTTP interface to access LLM service for me.
 
 ```bash
 # gen code are not included in git, re-generate them
-go run tools/gen/main.go
+go generate ./...
+# or more specifically
+# cd clients/model && go generate
 
 # compile
 go build

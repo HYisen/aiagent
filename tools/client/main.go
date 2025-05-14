@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-var endpoint = flag.String("endpoint", "http://localhost:8080/ai", "aiagent endpoint")
+var endpoint = flag.String("endpoint", "https://hyisen.net/ai", "aiagent endpoint")
 
 func main() {
 	flag.Parse()

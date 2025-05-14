@@ -1,3 +1,5 @@
+//go:build ignore
+
 package main
 
 import (
@@ -7,7 +9,7 @@ import (
 
 func main() {
 	g := gen.NewGenerator(gen.Config{
-		OutPath:      "./clients/query",
+		OutPath:      "../query",
 		ModelPkgPath: "",
 		Mode:         gen.WithoutContext | gen.WithDefaultQuery | gen.WithQueryInterface,
 	})
