@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime/debug"
 	"time"
 )
 
@@ -84,7 +85,11 @@ func server() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	s := service.New(client, sr, cr)
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		log.Fatal("no build info")
+	}
+	s := service.New(client, sr, cr, bi)
 	local, err := url.Parse(fmt.Sprintf("http://localhost:%d", *port))
 	if err != nil {
 		log.Fatal(err)

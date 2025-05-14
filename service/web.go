@@ -10,6 +10,7 @@ import (
 	"github.com/hyisen/wf"
 	"net/http"
 	"reflect"
+	"runtime/debug"
 	"time"
 )
 
@@ -17,6 +18,7 @@ type Service struct {
 	v1          *V1Service
 	v2          *V2Service
 	chatService *sc.Service
+	buildInfo   *debug.BuildInfo
 	web         *wf.Web
 }
 
@@ -35,12 +37,14 @@ func New(
 	client *openai.Client,
 	sessionRepository *session.Repository,
 	chatRepository *chat.Repository,
+	buildInfo *debug.BuildInfo,
 ) *Service {
 	ret := &Service{
 		web:         nil,
 		v1:          NewV1Service(sessionRepository),
 		v2:          NewV2Service(sessionRepository),
 		chatService: sc.NewService(client, chatRepository, sessionRepository),
+		buildInfo:   buildInfo,
 	}
 
 	v1PostSession := wf.NewJSONHandler(
@@ -197,6 +201,13 @@ func New(
 	)
 	v2PostSessionChatStream.Timeout = chatTimeout()
 
+	v1GetBuildInfo := wf.NewJSONHandler(
+		wf.Exact(http.MethodGet, "/v1/build-info"),
+		reflect.TypeOf(wf.Empty{}),
+		func(ctx context.Context, _ any) (rsp any, codedError *wf.CodedError) {
+			return ret.buildInfo, nil
+		})
+
 	ret.web = wf.NewWeb(
 		false,
 		v1PostSession,
@@ -209,6 +220,7 @@ func New(
 		v2GetSession,
 		v2PostSessionChat,
 		v2PostSessionChatStream,
+		v1GetBuildInfo,
 	)
 	return ret
 }

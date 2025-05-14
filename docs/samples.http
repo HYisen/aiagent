@@ -51,4 +51,8 @@ POST {{host}}/v1/sessions/{{id}}/chat?stream=true
   "model": "deepseek-reasoner"
 }
 
+### v1GetBuildInfo
+
+GET {{host}}/v1/build-info
+
 ###
