@@ -4,7 +4,7 @@
 # latest version
 FROM golang:1.24.1-alpine3.21 AS build
 
-RUN apk add gcc musl-dev
+RUN apk add gcc musl-dev git # git for vcs in debug.BuildInfo
 WORKDIR /app
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/go-build \
