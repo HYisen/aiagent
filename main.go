@@ -11,9 +11,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/hyisen/wf"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 	"log"
 	"log/slog"
 	"net/http"
@@ -21,6 +18,10 @@ import (
 	"os"
 	"runtime/debug"
 	"time"
+
+	"github.com/hyisen/wf"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 var DeepSeekAPIKey = flag.String("DeepSeekAPIKey", "this_is_a_secret", "API Key from platform.deepseek.com/api_keys")
