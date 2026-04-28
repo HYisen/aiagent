@@ -10,6 +10,7 @@ COPY . .
 RUN --mount=type=cache,target=/root/.cache/go-build \
   go mod download
 RUN go generate ./...
+RUN go test ./...
 RUN env CGO_ENABLED=1 go build -ldflags '-extldflags "-static"'
 
 FROM scratch
