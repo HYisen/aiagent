@@ -3,6 +3,7 @@ package ai
 import (
 	"aiagent/clients/openai"
 	"fmt"
+
 	"golang.org/x/text/currency"
 )
 
@@ -29,7 +30,7 @@ func (p PriceMillPerMToken) Cost(s TokenUsageStat) string {
 	ppb += p.Input * s.InputTokens()
 	ppb += p.CachedInput * s.CachedInputTokens()
 	ppb += p.Output * s.OutputTokens()
-	return fmt.Sprintf("%.3f %s", float64(ppb)/1_000_000_100, p.Unit.String())
+	return fmt.Sprintf("%.3f %s", float64(ppb)/1_000_000_000, p.Unit.String())
 }
 
 type TokenUsageStat interface {
