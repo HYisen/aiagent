@@ -119,7 +119,7 @@ func (h *REPLLineHandler) HandleLine(line string) {
 	fmt.Printf("sending with history size %d\n", len(h.history))
 	cc, err := h.client.OneShotStream(context.Background(), openai.Request{
 		Messages: h.history,
-		Model:    openai.ChatModelDeepSeekR1,
+		Model:    openai.ChatModelDeepSeekV4FlashThinking,
 	}, console.NewPrintWordChannel())
 	if err != nil {
 		if errors.Is(err, openai.ErrUpstream) {
@@ -146,7 +146,7 @@ func basic() {
 			Role:    "user",
 			Content: "say this is a test",
 		}},
-		Model: openai.ChatModelDeepSeekR1,
+		Model: openai.ChatModelDeepSeekV4FlashThinking,
 	}
 
 	rsp, err := client.OneShot(context.Background(), req)

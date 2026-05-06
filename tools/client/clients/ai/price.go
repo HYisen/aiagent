@@ -25,14 +25,16 @@ type PriceMillPerMToken struct {
 // another layer is not acceptable, thus I leave the cost as an extension of model here.
 // At present, I hold the idea that CostManager.Find(model) is better than model.Cost().
 func PriceOrDefault(model openai.ChatModel) PriceMillPerMToken {
+	// https://api-docs.deepseek.com/zh-cn/quick_start/pricing/
+	// snapshot of deepseek-reasoner from May.6th 2026
 	switch model {
-	case openai.ChatModelDeepSeekR1:
-		// https://api-docs.deepseek.com/zh-cn/quick_start/pricing/
-		// snapshot of deepseek-reasoner from Apr.14th 2025
+	case openai.ChatModelDeepSeekV4FlashThinking:
+		fallthrough
+	case openai.ChatModelDeepSeekV4FlashNonThinking:
 		return PriceMillPerMToken{
-			Input:       4_000,
-			CachedInput: 1_000,
-			Output:      16_000,
+			Input:       1_000,
+			CachedInput: 20,
+			Output:      2_000,
 			Unit:        currency.CNY,
 		}
 	default:

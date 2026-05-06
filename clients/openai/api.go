@@ -12,8 +12,8 @@ type ChatModel = string // it's openai.ChatModel
 //
 //goland:noinspection GoUnusedConst
 const (
-	ChatModelDeepSeekV3 ChatModel = "deepseek-chat"
-	ChatModelDeepSeekR1 ChatModel = "deepseek-reasoner"
+	ChatModelDeepSeekV4FlashNonThinking ChatModel = "deepseek-chat"
+	ChatModelDeepSeekV4FlashThinking    ChatModel = "deepseek-reasoner"
 )
 
 type Request struct {

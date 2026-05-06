@@ -10,10 +10,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hyisen/wf"
 	"io"
 	"net/http"
 	"strconv"
+
+	"github.com/hyisen/wf"
 )
 
 var ErrForbidden = errors.New("server responds 403")
@@ -148,7 +149,7 @@ func (c *V1Client) CreateSession() (id int, error error) {
 func newChatRequest(url string, content string) (*http.Request, error) {
 	payload := &chat.RequestPayload{
 		Content: content,
-		Model:   openai.ChatModelDeepSeekR1,
+		Model:   openai.ChatModelDeepSeekV4FlashThinking,
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
