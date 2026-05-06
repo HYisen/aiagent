@@ -14,14 +14,34 @@ type PriceMillPerMToken struct {
 	Unit        currency.Unit
 }
 
-func NewDeepSeekReasonerPrice() PriceMillPerMToken {
-	// https://api-docs.deepseek.com/zh-cn/quick_start/pricing/
-	// snapshot of deepseek-reasoner from Apr.14th 2025
-	return PriceMillPerMToken{
-		Input:       4_000,
-		CachedInput: 1_000,
-		Output:      16_000,
-		Unit:        currency.CNY,
+// PriceOrDefault gets input model's price, get zero(free) cost if unmatch.
+//
+// One may consider making [PriceMillPerMToken.Cost] a method of [ChatModel] to accomplish this polymorphism.
+// But since price don't belong to package where [openai.ChatModel] exists, pulling out the enum would create
+// dependency loop between the old and new package [ChatModel] exists.
+// As [OpenAIUsage] and [openai.Request] would require each other's package.
+// One solution is preventing package openai from using [ChatModel] directly,
+// but using String or other interface instead. I introduced enum to help developers finding ChatModel,
+// another layer is not acceptable, thus I leave the cost as an extension of model here.
+// At present, I hold the idea that CostManager.Find(model) is better than model.Cost().
+func PriceOrDefault(model openai.ChatModel) PriceMillPerMToken {
+	switch model {
+	case openai.ChatModelDeepSeekR1:
+		// https://api-docs.deepseek.com/zh-cn/quick_start/pricing/
+		// snapshot of deepseek-reasoner from Apr.14th 2025
+		return PriceMillPerMToken{
+			Input:       4_000,
+			CachedInput: 1_000,
+			Output:      16_000,
+			Unit:        currency.CNY,
+		}
+	default:
+		return PriceMillPerMToken{
+			Input:       0,
+			CachedInput: 0,
+			Output:      0,
+			Unit:        currency.XXX,
+		}
 	}
 }
 
