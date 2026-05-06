@@ -136,7 +136,7 @@ func doAndHandleResponse(req *http.Request) (words <-chan string, err error) {
 	}
 	if resp.StatusCode != http.StatusOK {
 		closer.CloseAndWarnIfFail(resp.Body)
-		return nil, fmt.Errorf("bad status %d %s", resp.StatusCode, resp.Status)
+		return nil, fmt.Errorf("bad status %v", resp.Status)
 	}
 
 	ch := make(chan string)

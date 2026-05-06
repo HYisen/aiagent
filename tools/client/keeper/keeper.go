@@ -73,7 +73,7 @@ func GenerateToken(ctx context.Context, host string, credential Credential) (*To
 
 	if resp.StatusCode != http.StatusOK {
 		msg, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("not ok response status code %d: %s", resp.StatusCode, string(msg))
+		return nil, fmt.Errorf("not ok response status %v: %s", resp.Status, string(msg))
 	}
 
 	var token Token
