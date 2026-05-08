@@ -44,6 +44,15 @@ func (c *Client) chat(ctx context.Context, request RequestWhole) (body io.ReadCl
 	if err != nil {
 		return nil, err
 	}
+	if resp.StatusCode != http.StatusOK {
+		// typical 400 as my fault of not well-prepared request
+		payload, e := io.ReadAll(resp.Body)
+		CloseAndWarnIfFail(resp.Body)
+		if e != nil {
+			payload = []byte(fmt.Sprintf("read payload error: %s", e.Error()))
+		}
+		return nil, fmt.Errorf("unexpected status code %d body %s", resp.StatusCode, string(payload))
+	}
 	return resp.Body, nil
 }
 
