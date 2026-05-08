@@ -9,6 +9,7 @@ package model
 
 import (
 	"aiagent/clients/openai"
+	"strings"
 	"time"
 )
 
@@ -63,6 +64,21 @@ type SessionWithID struct {
 
 func DefaultSessionName() string {
 	return time.Now().String()
+}
+
+// WeakName returns whether the [Session.Name] is weak.
+// Weak indicates it's a poorly generated name by timestamp,
+// which should be improved by the digest mechanism.
+func (s *Session) WeakName() bool {
+	// The implementation is a reverse of [time.Time.String].
+	name := s.Name
+	index := strings.LastIndex(name, " m=")
+	if index != -1 {
+		name = name[:index]
+	}
+	// That layout used in [time.Time.String] is not exposed, so we forked a copy here.
+	_, err := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", name)
+	return err == nil
 }
 
 func (s *Session) History() []openai.Message {
