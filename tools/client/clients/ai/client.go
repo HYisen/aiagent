@@ -2,6 +2,7 @@ package ai
 
 import (
 	"aiagent/clients/openai"
+	"aiagent/helpers/closer"
 	"aiagent/service/chat"
 	"aiagent/tools/client/keeper"
 	"aiagent/tools/client/ui"
@@ -74,7 +75,7 @@ func (c *V1Client) ListSessions() (map[int]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer openai.CloseAndWarnIfFail(resp.Body)
+	defer closer.CloseAndWarnIfFail(resp.Body)
 
 	return verifyParseExtract[v1Session](resp)
 }
@@ -170,6 +171,7 @@ func doAndHandleResponse(req *http.Request) (words <-chan string, err error) {
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
+		closer.CloseAndWarnIfFail(resp.Body)
 		return nil, fmt.Errorf("bad status %d %s", resp.StatusCode, resp.Status)
 	}
 

@@ -2,7 +2,7 @@ package ai
 
 import (
 	"aiagent/clients/model"
-	"aiagent/clients/openai"
+	"aiagent/helpers/closer"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -32,7 +32,7 @@ func (c *V2Client) ListSessions() (map[int]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer openai.CloseAndWarnIfFail(resp.Body)
+	defer closer.CloseAndWarnIfFail(resp.Body)
 
 	return verifyParseExtract[v2Session](resp)
 }
