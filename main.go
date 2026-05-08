@@ -117,10 +117,11 @@ func NewREPLLineHandler(client *openai.Client) *REPLLineHandler {
 func (h *REPLLineHandler) HandleLine(line string) {
 	h.history = append(h.history, openai.NewUserMessage(line))
 	fmt.Printf("sending with history size %d\n", len(h.history))
-	cc, err := h.client.OneShotStream(context.Background(), openai.Request{
-		Messages: h.history,
-		Model:    openai.ChatModelDeepSeekV4FlashThinking,
-	}, console.NewPrintWordChannel())
+	cc, err := h.client.OneShotStream(context.Background(), openai.NewRequest(
+		h.history,
+		openai.ChatModelDeepSeekV4Pro,
+		openai.ReasoningEffortHigh,
+	), console.NewPrintWordChannel())
 	if err != nil {
 		if errors.Is(err, openai.ErrUpstream) {
 			log.Printf("Poped question history because of upstream error: %v", err)
@@ -141,13 +142,14 @@ func repl() {
 
 func basic() {
 	client := openai.New("https://api.deepseek.com", *DeepSeekAPIKey)
-	req := openai.Request{
-		Messages: []openai.Message{{
+	req := openai.NewRequest(
+		[]openai.Message{{
 			Role:    "user",
 			Content: "say this is a test",
 		}},
-		Model: openai.ChatModelDeepSeekV4FlashThinking,
-	}
+		openai.ChatModelDeepSeekV4Flash,
+		openai.ReasoningEffortNone,
+	)
 
 	rsp, err := client.OneShot(context.Background(), req)
 	if err != nil {

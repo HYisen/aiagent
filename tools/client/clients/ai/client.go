@@ -149,7 +149,7 @@ func (c *V1Client) CreateSession() (id int, error error) {
 func newChatRequest(url string, content string) (*http.Request, error) {
 	payload := &chat.RequestPayload{
 		Content: content,
-		Model:   openai.ChatModelDeepSeekV4FlashThinking,
+		Model:   openai.ChatModelDeepSeekV4Pro,
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {

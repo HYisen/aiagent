@@ -9,12 +9,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hyisen/wf"
-	"gorm.io/gorm"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/hyisen/wf"
+	"gorm.io/gorm"
 )
 
 type Service struct {
@@ -63,10 +64,11 @@ func (s *Service) ChatSimple(
 		return nil, e
 	}
 
-	chatCompletion, err := s.client.OneShot(ctx, openai.Request{
-		Messages: append(ses.History(), openai.NewUserMessage(req.Content)),
-		Model:    req.Model,
-	})
+	chatCompletion, err := s.client.OneShot(ctx, openai.NewRequest(
+		append(ses.History(), openai.NewUserMessage(req.Content)),
+		req.Model,
+		openai.ReasoningEffortHigh,
+	))
 	if err != nil {
 		return nil, wf.NewCodedErrorf(http.StatusInternalServerError, "upstream: %v", err.Error())
 	}
@@ -144,10 +146,11 @@ func (s *Service) ChatStreamSimple(
 
 	detachedCtx, detachedCancelFunc := detachedContext(ctx)
 	// If we use ctx here, once the client has gone, our chat to upstream would be forced to end, which is not ideal.
-	up, err := s.client.OneShotStreamFast(detachedCtx, openai.Request{
-		Messages: append(ses.History(), openai.NewUserMessage(req.Content)),
-		Model:    req.Model,
-	})
+	up, err := s.client.OneShotStreamFast(detachedCtx, openai.NewRequest(
+		append(ses.History(), openai.NewUserMessage(req.Content)),
+		req.Model,
+		openai.ReasoningEffortHigh,
+	))
 	if err != nil {
 		detachedCancelFunc()
 		return nil, wf.NewCodedErrorf(http.StatusInternalServerError, "upstream: %v", err.Error())

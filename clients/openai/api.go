@@ -12,13 +12,60 @@ type ChatModel = string // it's openai.ChatModel
 //
 //goland:noinspection GoUnusedConst
 const (
-	ChatModelDeepSeekV4FlashNonThinking ChatModel = "deepseek-chat"
-	ChatModelDeepSeekV4FlashThinking    ChatModel = "deepseek-reasoner"
+	ChatModelDeepSeekV4Flash ChatModel = "deepseek-v4-flash"
+	ChatModelDeepSeekV4Pro   ChatModel = "deepseek-v4-pro"
+)
+
+type ReasoningEffort string
+
+// Define enums for possibilities, may not all used now.
+//
+//goland:noinspection GoUnusedConst
+const (
+	ReasoningEffortNone ReasoningEffort = "none" // as a trigger, not vendor API
+	ReasoningEffortHigh ReasoningEffort = "high" // a.k.a. "low" "medium"
+	ReasoningEffortMax  ReasoningEffort = "max"  // a.k.a. "xhigh"
 )
 
 type Request struct {
 	Messages []Message `json:"messages"`
 	Model    ChatModel `json:"model"`
+	// In the beginning, the package got its name as a compatibility promise,
+	// Sadly some vendors' implementations diversified. Hoping some day they can unite.
+	// [ReasoningEffort] is an OpenAI's standard, while [Thinking] is a DeepSeek API dialect.
+	// ref https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create
+	// ref https://api-docs.deepseek.com/api/create-chat-completion
+	ReasoningEffort ReasoningEffort `json:"reasoning_effort,omitempty"`
+	Thinking        Thinking        `json:"thinking"`
+}
+
+func NewRequest(messages []Message, model ChatModel, thinking ReasoningEffort) Request {
+	if thinking == ReasoningEffortNone {
+		// > thinking options type cannot be disabled when reasoning_effort is set
+		return Request{
+			Messages:        messages,
+			Model:           model,
+			ReasoningEffort: "", // JSON omitempty, otherwise 400
+			Thinking:        Thinking{Type: ThinkingTypeDisabled},
+		}
+	}
+	return Request{
+		Messages:        messages,
+		Model:           model,
+		ReasoningEffort: thinking,
+		Thinking:        Thinking{Type: ThinkingTypeEnabled},
+	}
+}
+
+type ThinkingType string
+
+const (
+	ThinkingTypeEnabled  ThinkingType = "enabled"
+	ThinkingTypeDisabled ThinkingType = "disabled"
+)
+
+type Thinking struct {
+	Type ThinkingType `json:"type"`
 }
 
 type RequestWhole struct {

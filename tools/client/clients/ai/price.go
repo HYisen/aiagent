@@ -28,13 +28,18 @@ func PriceOrDefault(model openai.ChatModel) PriceMillPerMToken {
 	// https://api-docs.deepseek.com/zh-cn/quick_start/pricing/
 	// snapshot of deepseek-reasoner from May.6th 2026
 	switch model {
-	case openai.ChatModelDeepSeekV4FlashThinking:
-		fallthrough
-	case openai.ChatModelDeepSeekV4FlashNonThinking:
+	case openai.ChatModelDeepSeekV4Flash:
 		return PriceMillPerMToken{
 			Input:       1_000,
 			CachedInput: 20,
 			Output:      2_000,
+			Unit:        currency.CNY,
+		}
+	case openai.ChatModelDeepSeekV4Pro:
+		return PriceMillPerMToken{
+			Input:       3_000,
+			CachedInput: 25,
+			Output:      6_000,
 			Unit:        currency.CNY,
 		}
 	default:
