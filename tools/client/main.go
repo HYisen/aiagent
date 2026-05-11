@@ -50,7 +50,7 @@ func checkAndParseInitLine(s string) (isInitLine bool, createSession bool, oldSe
 func (h *ChatLineHandler) createSession() (idOrScopedID int, err error) {
 	id, errOne := h.client.CreateSession()
 	if errOne == nil || !errors.Is(errOne, ai.ErrForbidden) {
-		return id, nil
+		return id, errOne
 	}
 	neo, errTwo := h.client.UpgradeOptional()
 	if errTwo != nil {
