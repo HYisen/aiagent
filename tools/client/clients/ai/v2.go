@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 )
 
 type TokenProvider interface {
@@ -71,7 +72,7 @@ func (c *V2Client) CreateSession() (id int, error error) {
 
 	c.AttachToken(req)
 
-	data, err := doRequestAndHandleResponse(req)
+	data, err := doRequestAndVerifyStatusReadBodyAll(req)
 	if err != nil {
 		return 0, err
 	}
@@ -106,6 +107,25 @@ func (c *V2Client) AttachToken(req *http.Request) {
 		log.Fatal(err)
 	}
 	req.Header.Set("Token", token)
+}
+
+func (c *V2Client) GetVersion() (version *debug.BuildInfo, err error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v1/build-info", c.endpoint), nil)
+	if err != nil {
+		return nil, err
+	}
+	c.AttachToken(req)
+
+	data, err := doRequestAndVerifyStatusReadBodyAll(req)
+	if err != nil {
+		return nil, err
+	}
+
+	version = &debug.BuildInfo{}
+	if err := json.Unmarshal(data, version); err != nil {
+		return nil, err
+	}
+	return version, nil
 }
 
 func (c *V1Client) serverHost() string {

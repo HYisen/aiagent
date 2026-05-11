@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 
 	"github.com/hyisen/wf"
@@ -109,7 +110,7 @@ func (c *V1Client) UpgradeOptional() (neo Client, err error) {
 	return neo, nil
 }
 
-func doRequestAndHandleResponse(req *http.Request) (responsePayload []byte, err error) {
+func doRequestAndVerifyStatusReadBodyAll(req *http.Request) (responsePayload []byte, err error) {
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -117,7 +118,10 @@ func doRequestAndHandleResponse(req *http.Request) (responsePayload []byte, err 
 	defer func(c io.Closer) {
 		err = errors.Join(err, c.Close())
 	}(resp.Body)
+	return VerifyStatusReadBodyAll(resp)
+}
 
+func VerifyStatusReadBodyAll(resp *http.Response) (responsePayload []byte, err error) {
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -136,7 +140,7 @@ func (c *V1Client) CreateSession() (id int, error error) {
 	if err != nil {
 		return 0, err
 	}
-	data, err := doRequestAndHandleResponse(req)
+	data, err := doRequestAndVerifyStatusReadBodyAll(req)
 	if err != nil {
 		return 0, err
 	}
@@ -187,4 +191,23 @@ func (c *V1Client) Chat(sessionID int, content string) (words <-chan string, err
 		return nil, err
 	}
 	return doAndHandleResponse(req)
+}
+
+func (c *V1Client) GetVersion() (version *debug.BuildInfo, err error) {
+	resp, err := http.Get(fmt.Sprintf("%s/v1/build-info", c.endpoint))
+	if err != nil {
+		return nil, err
+	}
+	defer closer.CloseAndWarnIfFail(resp.Body)
+
+	data, err := VerifyStatusReadBodyAll(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	version = &debug.BuildInfo{}
+	if err := json.Unmarshal(data, version); err != nil {
+		return nil, err
+	}
+	return version, nil
 }

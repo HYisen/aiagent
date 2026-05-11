@@ -1,5 +1,7 @@
 package ai
 
+import "runtime/debug"
+
 // Client is the interface that what package client provides implements.
 // Its user may prefer to define the interface on the caller side,
 // but the interface is self-referenced, and return *ImplStruct does NOT match return Interface.
@@ -12,4 +14,5 @@ type Client interface {
 	// otherwise a receiver's replacement.
 	UpgradeOptional() (neo Client, err error)
 	ListSessions() (idToName map[int]string, err error)
+	GetVersion() (version *debug.BuildInfo, err error)
 }

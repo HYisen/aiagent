@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"strconv"
 	"strings"
 )
@@ -63,6 +64,27 @@ func (h *ChatLineHandler) createSession() (idOrScopedID int, err error) {
 	return h.client.CreateSession()
 }
 
+// PrintVersion prints server version.
+func (h *ChatLineHandler) PrintVersion() error {
+	version, errOne := h.client.GetVersion()
+	if errOne == nil {
+		fmt.Println(version)
+		return nil
+	}
+	if !errors.Is(errOne, ai.ErrForbidden) {
+		return errOne
+	}
+	neo, errTwo := h.client.UpgradeOptional()
+	if errTwo != nil {
+		return errTwo
+	}
+	if neo == nil {
+		return errors.Join(errOne, errors.New("client does not support upgrade"))
+	}
+	h.client = neo
+	return h.PrintVersion()
+}
+
 func (h *ChatLineHandler) HandleLine(line string) {
 	if line == ":ls" {
 		idToName, err := h.client.ListSessions()
@@ -72,6 +94,12 @@ func (h *ChatLineHandler) HandleLine(line string) {
 		}
 		for id, name := range idToName {
 			fmt.Printf("%d\t%s\n", id, name)
+		}
+		return
+	}
+	if line == ":version" {
+		if err := h.PrintVersion(); err != nil {
+			slog.Error("PrintVersion failed", "err", err)
 		}
 		return
 	}
