@@ -20,6 +20,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          fetch-depth: 0 # Try to fill debug.BuildInfo on pseudo tags.
           fetch-tags: 'true' # allow debug.BuildInfo could calculate a tag
 
       - name: Build
