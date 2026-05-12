@@ -7,8 +7,9 @@ on:
       - "**.go"
       - "go.mod"
       - "Dockerfile"
-      - ".github/**"
-      - "!tools/client/**" # We don't ship clients at present, modifications here shall have no influence.
+      - ".github/actions/**"
+      - ".github/workflows/ci.yml"
+      - "!tools/client/**" # Dispatched to client workflow.
 
 env:
   OUTPUT_PATH: out
