@@ -8,31 +8,40 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 var endpoint = flag.String("endpoint", "https://hyisen.net/ai", "aiagent endpoint")
 var softWrapWidth = flag.Int("softWrapWidth", 0, "soft wrap output line at width for unable terminals, 0 for disable")
+var nonASCIIWidthScale = flag.Float64("nonASCIIWidthScale", 2.0, "one non-ASCII char wide as how many ASCII chars in soft wrap")
 
 func main() {
 	flag.Parse()
-	handler := NewChatLineHandler(ai.NewClient(*endpoint), *softWrapWidth)
+	handler := NewChatLineHandler(ai.NewClient(*endpoint), SoftWrapOptions{
+		TerminalWidth: *softWrapWidth,
+		NonASCIIScale: *nonASCIIWidthScale,
+	})
 	controller := console.NewController(handler, console.NewDefaultOptions())
 	controller.Run()
 }
 
+type SoftWrapOptions struct {
+	TerminalWidth int
+	NonASCIIScale float64
+}
+
 type ChatLineHandler struct {
-	client        ai.Client
-	softWrapWidth int
+	client ai.Client
+	swo    SoftWrapOptions
 
 	initialized bool
 	sessionID   int
 }
 
-func NewChatLineHandler(client ai.Client, softWrapWidth int) *ChatLineHandler {
-	return &ChatLineHandler{client: client, softWrapWidth: softWrapWidth}
+func NewChatLineHandler(client ai.Client, softWrapOptions SoftWrapOptions) *ChatLineHandler {
+	return &ChatLineHandler{client: client, swo: softWrapOptions}
 }
 
 const initLinePrefix = "init"
@@ -136,34 +145,32 @@ Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
 	if err != nil {
 		log.Fatal(err)
 	}
-	printWithSoftWrap(h.softWrapWidth, words)
+	printWithSoftWrap(h.swo, words)
 }
 
-func printWithSoftWrap(width int, words <-chan string) {
-	ttl := width
+func printWithSoftWrap(opts SoftWrapOptions, words <-chan string) {
+	ttl := float64(opts.TerminalWidth)
+	var buf strings.Builder
 	for word := range words {
-		chs := []rune(word)
-		index := slices.Index(chs, '\n')
-		for index != -1 {
-			ttl = printSoftWrapped(width, ttl, chs[:index+1])
-			chs = chs[index+1:]
-			index = slices.Index(chs, '\n')
-		}
-		if len(chs) > 0 {
-			ttl = printSoftWrapped(width, ttl, chs)
-		}
-	}
-}
+		for _, ch := range word {
+			if ch == '\n' {
+				fmt.Println(buf.String())
+				buf.Reset()
+				ttl = float64(opts.TerminalWidth)
+				continue
+			}
 
-func printSoftWrapped(width int, ttl int, chs []rune) (neoTTL int) {
-	for ttl < len(chs) {
-		fmt.Println(string(chs[:ttl]) + " ⏎")
-		chs = chs[ttl:]
-		ttl = width
+			buf.WriteRune(ch)
+			if ch <= unicode.MaxASCII {
+				ttl -= 1.0
+			} else {
+				ttl -= opts.NonASCIIScale
+			}
+			if ttl < 0 {
+				fmt.Println(buf.String() + " ⏎")
+				buf.Reset()
+				ttl = float64(opts.TerminalWidth)
+			}
+		}
 	}
-	fmt.Print(string(chs))
-	if chs[len(chs)-1] == '\n' {
-		return width
-	}
-	return ttl - len(chs)
 }
