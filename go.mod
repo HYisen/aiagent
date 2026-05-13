@@ -5,7 +5,7 @@ go 1.26
 require (
 	github.com/hyisen/wf v1.7.0
 	golang.org/x/term v0.42.0 // used by tools/client
-	golang.org/x/text v0.36.0
+	golang.org/x/text v0.37.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gen v0.3.27
 	gorm.io/gorm v1.31.1

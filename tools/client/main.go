@@ -10,18 +10,19 @@ import (
 	"log/slog"
 	"strconv"
 	"strings"
-	"unicode"
+
+	"golang.org/x/text/width"
 )
 
 var endpoint = flag.String("endpoint", "https://hyisen.net/ai", "aiagent endpoint")
 var softWrapWidth = flag.Int("softWrapWidth", 0, "soft wrap output line at width for unable terminals, 0 for disable")
-var nonASCIIWidthScale = flag.Float64("nonASCIIWidthScale", 2.0, "one non-ASCII char wide as how many ASCII chars in soft wrap")
+var wideCharScale = flag.Float64("wideCharScale", 1.667, "one CJK wide char as how many ASCII chars in soft wrap")
 
 func main() {
 	flag.Parse()
 	handler := NewChatLineHandler(ai.NewClient(*endpoint), SoftWrapOptions{
 		TerminalWidth: *softWrapWidth,
-		NonASCIIScale: *nonASCIIWidthScale,
+		WideCharScale: *wideCharScale,
 	})
 	controller := console.NewController(handler, console.NewDefaultOptions())
 	controller.Run()
@@ -29,7 +30,7 @@ func main() {
 
 type SoftWrapOptions struct {
 	TerminalWidth int
-	NonASCIIScale float64
+	WideCharScale float64
 }
 
 type ChatLineHandler struct {
@@ -161,10 +162,10 @@ func printWithSoftWrap(opts SoftWrapOptions, words <-chan string) {
 			}
 
 			buf.WriteRune(ch)
-			if ch <= unicode.MaxASCII {
-				ttl -= 1.0
+			if LooksWide(ch) {
+				ttl -= opts.WideCharScale
 			} else {
-				ttl -= opts.NonASCIIScale
+				ttl -= 1.0
 			}
 			if ttl < 0 {
 				fmt.Println(buf.String() + " ⏎")
@@ -172,5 +173,24 @@ func printWithSoftWrap(opts SoftWrapOptions, words <-chan string) {
 				ttl = float64(opts.TerminalWidth)
 			}
 		}
+	}
+}
+
+func LooksWide(r rune) bool {
+	switch width.LookupRune(r).Kind() {
+	case width.Neutral:
+		fallthrough
+	case width.EastAsianAmbiguous:
+		fallthrough
+	case width.EastAsianNarrow:
+		fallthrough
+	case width.EastAsianHalfwidth:
+		return false
+	case width.EastAsianWide:
+		fallthrough
+	case width.EastAsianFullwidth:
+		fallthrough
+	default:
+		return true
 	}
 }
