@@ -150,6 +150,13 @@ Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
 }
 
 func printWithSoftWrap(opts SoftWrapOptions, words <-chan string) {
+	if opts.TerminalWidth == 0 {
+		for word := range words {
+			fmt.Print(word)
+		}
+		return
+	}
+
 	ttl := float64(opts.TerminalWidth)
 	var buf strings.Builder
 	for word := range words {
@@ -161,19 +168,36 @@ func printWithSoftWrap(opts SoftWrapOptions, words <-chan string) {
 				continue
 			}
 
-			buf.WriteRune(ch)
+			var w float64
 			if LooksWide(ch) {
-				ttl -= opts.WideCharScale
+				w = opts.WideCharScale
 			} else {
-				ttl -= 1.0
+				w = 1.0
 			}
-			if ttl < 0 {
-				fmt.Println(buf.String() + " ⏎")
-				buf.Reset()
+
+			ttl -= w
+			if ttl < -1 {
+				softWrapNextLine(&buf)
+				buf.WriteRune(ch)
+				ttl = float64(opts.TerminalWidth) - w
+			} else if ttl <= 0 {
+				buf.WriteRune(ch)
+				softWrapNextLine(&buf)
 				ttl = float64(opts.TerminalWidth)
+			} else {
+				buf.WriteRune(ch)
 			}
 		}
 	}
+	if buf.Len() != 0 {
+		panic(fmt.Errorf("unused soft-wrap buf %s", buf.String()))
+	}
+}
+
+func softWrapNextLine(buf *strings.Builder) {
+	buf.WriteString("⏎")
+	fmt.Println(buf.String())
+	buf.Reset()
 }
 
 func LooksWide(r rune) bool {
