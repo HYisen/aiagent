@@ -8,27 +8,31 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 )
 
 var endpoint = flag.String("endpoint", "https://hyisen.net/ai", "aiagent endpoint")
+var softWrapWidth = flag.Int("softWrapWidth", 0, "soft wrap output line at width for unable terminals, 0 for disable")
 
 func main() {
 	flag.Parse()
-	handler := NewChatLineHandler(ai.NewClient(*endpoint))
+	handler := NewChatLineHandler(ai.NewClient(*endpoint), *softWrapWidth)
 	controller := console.NewController(handler, console.NewDefaultOptions())
 	controller.Run()
 }
 
 type ChatLineHandler struct {
-	client      ai.Client
+	client        ai.Client
+	softWrapWidth int
+
 	initialized bool
 	sessionID   int
 }
 
-func NewChatLineHandler(client ai.Client) *ChatLineHandler {
-	return &ChatLineHandler{client: client}
+func NewChatLineHandler(client ai.Client, softWrapWidth int) *ChatLineHandler {
+	return &ChatLineHandler{client: client, softWrapWidth: softWrapWidth}
 }
 
 const initLinePrefix = "init"
@@ -132,7 +136,34 @@ Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
 	if err != nil {
 		log.Fatal(err)
 	}
+	printWithSoftWrap(h.softWrapWidth, words)
+}
+
+func printWithSoftWrap(width int, words <-chan string) {
+	ttl := width
 	for word := range words {
-		fmt.Print(word)
+		chs := []rune(word)
+		index := slices.Index(chs, '\n')
+		for index != -1 {
+			ttl = printSoftWrapped(width, ttl, chs[:index+1])
+			chs = chs[index+1:]
+			index = slices.Index(chs, '\n')
+		}
+		if len(chs) > 0 {
+			ttl = printSoftWrapped(width, ttl, chs)
+		}
 	}
+}
+
+func printSoftWrapped(width int, ttl int, chs []rune) (neoTTL int) {
+	for ttl < len(chs) {
+		fmt.Println(string(chs[:ttl]) + " ⏎")
+		chs = chs[ttl:]
+		ttl = width
+	}
+	fmt.Print(string(chs))
+	if chs[len(chs)-1] == '\n' {
+		return width
+	}
+	return ttl - len(chs)
 }
