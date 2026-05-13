@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"runtime/debug"
 )
 
@@ -126,12 +125,4 @@ func (c *V2Client) GetVersion() (version *debug.BuildInfo, err error) {
 		return nil, err
 	}
 	return version, nil
-}
-
-func (c *V1Client) serverHost() string {
-	u, err := url.Parse(c.endpoint)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return fmt.Sprintf("%s://%s", u.Scheme, u.Host)
 }
