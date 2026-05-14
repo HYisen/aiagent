@@ -20,6 +20,17 @@ type Session struct {
 	Chats    []*Chat `gorm:"foreignkey:SessionID"`
 }
 
+type SessionWithChatsDigest struct {
+	Session
+	ChatsDigest
+}
+
+type ChatsDigest struct {
+	Rounds    int
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 func (s *Session) SessionWithID() *SessionWithID {
 	return &SessionWithID{
 		ID:      s.ID,
@@ -49,11 +60,15 @@ func (s *Session) History() []openai.Message {
 }
 
 type Chat struct {
+	ChatPart
+	Input  string
+	Result *Result `gorm:"foreignkey:ChatID"`
+}
+
+type ChatPart struct {
 	ID         int `json:"-"`
 	SessionID  int `json:"-"`
-	Input      string
 	CreateTime int64
-	Result     *Result `gorm:"foreignkey:ChatID"`
 }
 
 func (c *Chat) Chat() *openai.Chat {

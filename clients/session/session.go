@@ -1,21 +1,29 @@
 package session
 
 import (
+	"aiagent/clients/generated"
 	"aiagent/clients/model"
 	"aiagent/clients/query"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"maps"
+	"slices"
+	"time"
+
 	"gorm.io/gorm"
 )
 
 type Repository struct {
-	q *query.Query
+	q  *query.Query
+	db *gorm.DB
 }
 
 func NewRepository(db *gorm.DB) (*Repository, error) {
 	return &Repository{
-		q: query.Use(db),
+		q:  query.Use(db),
+		db: db,
 	}, nil
 }
 
@@ -124,4 +132,70 @@ func (r *Repository) AppendChat(_ context.Context, _ int, _ *model.Chat) error {
 	// In short, the flowing commented code would fail with nil chat.Result in DB.
 	// return r.q.Session.Chats.WithContext(ctx).Model(&model.Session{ID: sessionID}).Append(chat)
 	return fmt.Errorf("AppendChat %w", errors.ErrUnsupported)
+}
+
+func digest(chats []model.ChatPart) (sessionIDToChatsDigests map[int]*model.ChatsDigest) {
+	farFuture := time.Now().Add(time.Hour) // Later than any possible chat time fetched later.
+	sessionIDToChatsDigests = make(map[int]*model.ChatsDigest)
+	for _, part := range chats {
+		if sessionIDToChatsDigests[part.SessionID] == nil {
+			sessionIDToChatsDigests[part.SessionID] = &model.ChatsDigest{
+				Rounds:    0,
+				CreatedAt: farFuture,
+				UpdatedAt: time.UnixMilli(0), // assert no chat happened before Genesis
+			}
+		}
+		sessionIDToChatsDigests[part.SessionID].Rounds++
+		created := time.UnixMilli(part.CreateTime)
+		if created.Before(sessionIDToChatsDigests[part.SessionID].CreatedAt) {
+			sessionIDToChatsDigests[part.SessionID].CreatedAt = created
+		}
+		if created.After(sessionIDToChatsDigests[part.SessionID].UpdatedAt) {
+			sessionIDToChatsDigests[part.SessionID].UpdatedAt = created
+		}
+	}
+	return sessionIDToChatsDigests
+}
+
+func (r *Repository) FindWithChatsDigestByUserID(
+	ctx context.Context,
+	userID int,
+) ([]*model.SessionWithChatsDigest, error) {
+	parts, err := generated.SessionChatQuery[any](r.db).FindChatPartByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	sessionIDToChatsDigests := digest(parts)
+
+	sessions, err := r.FindByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var ret []*model.SessionWithChatsDigest
+	for _, s := range sessions {
+		chatsDigest := sessionIDToChatsDigests[s.ID]
+		if chatsDigest == nil {
+			// CreateSession and its chats' creation are separate procedures.
+			// Session with empty chats are planned to be cleaned, but not guaranteed to be extinct.
+			slog.Warn(
+				"unmatched SessionChatsDigests",
+				"sessionID",
+				s.ID,
+				"keys",
+				slices.Collect(maps.Keys(sessionIDToChatsDigests)),
+			)
+			dummyTime := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
+			chatsDigest = &model.ChatsDigest{
+				Rounds:    0,
+				CreatedAt: dummyTime,
+				UpdatedAt: dummyTime,
+			}
+		}
+		ret = append(ret, &model.SessionWithChatsDigest{
+			Session:     *s,
+			ChatsDigest: *chatsDigest,
+		})
+	}
+	return ret, nil
 }

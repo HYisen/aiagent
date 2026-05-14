@@ -95,11 +95,13 @@ func (s *Service) prepareChat(ctx context.Context, sessionID int, req *RequestPa
 	}
 
 	if err := s.chatRepository.Save(ctx, &model.Chat{
-		ID:         0,
-		SessionID:  ses.ID,
-		Input:      req.Content,
-		CreateTime: time.Now().UnixMilli(),
-		Result:     nil,
+		ChatPart: model.ChatPart{
+			ID:         0,
+			SessionID:  ses.ID,
+			CreateTime: time.Now().UnixMilli(),
+		},
+		Input:  req.Content,
+		Result: nil,
 	}); err != nil {
 		return nil, nil, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
