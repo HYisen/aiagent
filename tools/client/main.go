@@ -176,14 +176,12 @@ func printWithSoftWrap(opts SoftWrapOptions, words <-chan string) {
 			}
 
 			ttl -= w
-			if ttl < -1 {
-				softWrapNextLine(&buf)
+			if ttl < 0 {
+				buf.WriteString("⏎")
+				fmt.Println(buf.String())
+				buf.Reset()
 				buf.WriteRune(ch)
 				ttl = float64(opts.TerminalWidth) - w
-			} else if ttl <= 0 {
-				buf.WriteRune(ch)
-				softWrapNextLine(&buf)
-				ttl = float64(opts.TerminalWidth)
 			} else {
 				buf.WriteRune(ch)
 			}
@@ -192,12 +190,6 @@ func printWithSoftWrap(opts SoftWrapOptions, words <-chan string) {
 	if buf.Len() != 0 {
 		panic(fmt.Errorf("unused soft-wrap buf %s", buf.String()))
 	}
-}
-
-func softWrapNextLine(buf *strings.Builder) {
-	buf.WriteString("⏎")
-	fmt.Println(buf.String())
-	buf.Reset()
 }
 
 func LooksWide(r rune) bool {
