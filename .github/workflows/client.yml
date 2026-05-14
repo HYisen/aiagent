@@ -4,7 +4,7 @@ on:
   push:
     branches-ignore: [ "master" ]
     paths:
-      - "!tools/client/**" # Focus on client only. Pretend dependencies versions does not matter.
+      - "tools/client/**" # Focus on client only. Pretend dependencies versions does not matter.
       - ".github/workflows/client.yml"
 
 env:
