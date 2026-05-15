@@ -44,11 +44,9 @@ type Session interface {
 }
 
 type v2Session struct {
-	ScopedID  int
-	Name      string
-	Rounds    int
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ScopedID int
+	Name     string
+	model.ChatsDigest
 }
 
 func (s v2Session) Key() int {
@@ -59,14 +57,14 @@ func (s v2Session) Value() string {
 	return fmt.Sprintf(
 		"%4d\t%s\t%s\t%s",
 		s.Rounds,
-		localShortDateTime(s.CreatedAt),
-		localShortDateTime(s.UpdatedAt),
+		localShortDateTime(s.CreateTimeEpochMilli),
+		localShortDateTime(s.UpdateTimeEpochMilli),
 		s.Name,
 	)
 }
 
-func localShortDateTime(t time.Time) string {
-	return t.Local().Format(time.UnixDate)
+func localShortDateTime(epochMillis int64) string {
+	return time.UnixMilli(epochMillis).Local().Format(time.UnixDate)
 }
 
 func NewV2Client(endpoint string, tokenProvider TokenProvider, userID int) *V2Client {

@@ -140,19 +140,16 @@ func digest(chats []model.ChatPart) (sessionIDToChatsDigests map[int]*model.Chat
 	for _, part := range chats {
 		if sessionIDToChatsDigests[part.SessionID] == nil {
 			sessionIDToChatsDigests[part.SessionID] = &model.ChatsDigest{
-				Rounds:    0,
-				CreatedAt: farFuture,
-				UpdatedAt: time.UnixMilli(0), // assert no chat happened before Genesis
+				Rounds:               0,
+				CreateTimeEpochMilli: farFuture.UnixMilli(),
+				UpdateTimeEpochMilli: 0, // assert no chat happened before Genesis
 			}
 		}
 		sessionIDToChatsDigests[part.SessionID].Rounds++
-		created := time.UnixMilli(part.CreateTime)
-		if created.Before(sessionIDToChatsDigests[part.SessionID].CreatedAt) {
-			sessionIDToChatsDigests[part.SessionID].CreatedAt = created
-		}
-		if created.After(sessionIDToChatsDigests[part.SessionID].UpdatedAt) {
-			sessionIDToChatsDigests[part.SessionID].UpdatedAt = created
-		}
+		sessionIDToChatsDigests[part.SessionID].CreateTimeEpochMilli =
+			min(sessionIDToChatsDigests[part.SessionID].CreateTimeEpochMilli, part.CreateTime)
+		sessionIDToChatsDigests[part.SessionID].UpdateTimeEpochMilli =
+			max(sessionIDToChatsDigests[part.SessionID].UpdateTimeEpochMilli, part.CreateTime)
 	}
 	return sessionIDToChatsDigests
 }
@@ -185,11 +182,11 @@ func (r *Repository) FindWithChatsDigestByUserID(
 				"keys",
 				slices.Collect(maps.Keys(sessionIDToChatsDigests)),
 			)
-			dummyTime := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
+			dummyTime := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
 			chatsDigest = &model.ChatsDigest{
-				Rounds:    0,
-				CreatedAt: dummyTime,
-				UpdatedAt: dummyTime,
+				Rounds:               0,
+				CreateTimeEpochMilli: dummyTime,
+				UpdateTimeEpochMilli: dummyTime,
 			}
 		}
 		ret = append(ret, &model.SessionWithChatsDigest{

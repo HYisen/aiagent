@@ -26,9 +26,14 @@ type SessionWithChatsDigest struct {
 }
 
 type ChatsDigest struct {
-	Rounds    int
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Rounds int
+	// There were `CreatedAt time.Time` and its update counterpart.
+	// But witnessed the string format DateTime in JSON, I think twice and concludes that
+	// 1. The [time.Time] feature is not used on server yet, it's transparent.
+	// 2. Clients have no reason to get the TimeZone info leaks from [time.Time].
+	// 3. Despite Go client can parse its string type timestamp in JSON, EpochMill is easier cross-language.
+	CreateTimeEpochMilli int64
+	UpdateTimeEpochMilli int64
 }
 
 func (s *Session) SessionWithID() *SessionWithID {
