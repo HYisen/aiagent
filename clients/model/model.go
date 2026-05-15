@@ -25,6 +25,19 @@ type SessionWithChatsDigest struct {
 	ChatsDigest
 }
 
+// WithID overrides JSON ignore indicator on ID, returns same Go item but has ID in JSON avatar.
+func (s *SessionWithChatsDigest) WithID() *SessionWithChatsDigestAndID {
+	return &SessionWithChatsDigestAndID{
+		ID:                     s.ID,
+		SessionWithChatsDigest: *s,
+	}
+}
+
+type SessionWithChatsDigestAndID struct {
+	ID int
+	SessionWithChatsDigest
+}
+
 type ChatsDigest struct {
 	Rounds int
 	// There were `CreatedAt time.Time` and its update counterpart.
@@ -36,7 +49,7 @@ type ChatsDigest struct {
 	UpdateTimeEpochMilli int64
 }
 
-func (s *Session) SessionWithID() *SessionWithID {
+func (s *Session) WithID() *SessionWithID {
 	return &SessionWithID{
 		ID:      s.ID,
 		Session: *s,

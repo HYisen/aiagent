@@ -27,8 +27,18 @@ func NewRepository(db *gorm.DB) (*Repository, error) {
 	}, nil
 }
 
-func (r *Repository) FindAll(ctx context.Context) ([]*model.Session, error) {
-	return r.q.Session.WithContext(ctx).Find()
+func (r *Repository) FindAll(ctx context.Context) ([]*model.SessionWithChatsDigest, error) {
+	sessions, err := gorm.G[*model.Session](r.db).Find(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var chats []model.ChatPart
+	if err := r.db.WithContext(ctx).Model(&model.Chat{}).Find(&chats).Error; err != nil {
+		return nil, err
+	}
+
+	return extendSessionWithChatsDigest(sessions, digest(chats)), nil
 }
 
 func (r *Repository) FindByUserID(ctx context.Context, userID int) ([]*model.Session, error) {
