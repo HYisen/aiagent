@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"runtime/debug"
+	"time"
 )
 
 type TokenProvider interface {
@@ -43,8 +44,11 @@ type Session interface {
 }
 
 type v2Session struct {
-	ScopedID int
-	Name     string
+	ScopedID  int
+	Name      string
+	Rounds    int
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (s v2Session) Key() int {
@@ -52,7 +56,17 @@ func (s v2Session) Key() int {
 }
 
 func (s v2Session) Value() string {
-	return s.Name
+	return fmt.Sprintf(
+		"%4d\t%s\t%s\t%s",
+		s.Rounds,
+		localShortDateTime(s.CreatedAt),
+		localShortDateTime(s.UpdatedAt),
+		s.Name,
+	)
+}
+
+func localShortDateTime(t time.Time) string {
+	return t.Local().Format(time.UnixDate)
 }
 
 func NewV2Client(endpoint string, tokenProvider TokenProvider, userID int) *V2Client {
