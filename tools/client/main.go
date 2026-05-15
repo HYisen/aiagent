@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/text/width"
 )
@@ -99,16 +101,39 @@ func (h *ChatLineHandler) PrintVersion() error {
 	return h.PrintVersion()
 }
 
+func localShortDateTime(epochMillis int64) string {
+	return time.UnixMilli(epochMillis).Local().Format(time.UnixDate)
+}
+
+func PrintSessionTable[T ai.Session](sessions []T) {
+	if len(sessions) == 0 {
+		fmt.Println("Empty Session Table")
+		return
+	}
+	fmt.Printf("%s\tRounds\tCreatedAt\tUpdatedAt\n", sessions[0].IDField())
+	for _, s := range sessions {
+		fmt.Printf(
+			"%4d\t%4d\t%s\t%s\t%s\n",
+			s.IDValue(),
+			s.SessionCommon().Rounds,
+			localShortDateTime(s.SessionCommon().CreateTimeEpochMilli),
+			localShortDateTime(s.SessionCommon().UpdateTimeEpochMilli),
+			s.SessionCommon().Name,
+		)
+	}
+}
+
 func (h *ChatLineHandler) HandleLine(line string) {
 	if line == ":ls" {
-		idToDesc, err := h.client.ListSessions()
+		sessions, err := h.client.ListSessions()
 		if err != nil {
 			fmt.Printf("server error: %v\n", err)
 			return
 		}
-		for id, desc := range idToDesc {
-			fmt.Printf("%d\t%s\n", id, desc)
-		}
+		slices.SortFunc(sessions, func(lhs ai.Session, rhs ai.Session) int {
+			return int(lhs.SessionCommon().UpdateTimeEpochMilli - rhs.SessionCommon().UpdateTimeEpochMilli)
+		})
+		PrintSessionTable(sessions)
 		return
 	}
 	if line == ":version" {

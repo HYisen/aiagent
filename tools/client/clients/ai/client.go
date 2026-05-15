@@ -27,60 +27,40 @@ type V1Client struct {
 	endpoint string
 }
 
-func VerifyStatusReadBodyOnFail(resp *http.Response) error {
-	if resp.StatusCode == http.StatusOK {
-		return nil
-	}
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("unexpected http status code %d no body %v", resp.StatusCode, err)
-	}
-	return fmt.Errorf("unexpected http status code %d: %s", resp.StatusCode, string(data))
-}
-
-func verifyParseExtract[ItemType Session](resp *http.Response) (idToName map[int]string, err error) {
-	if err := VerifyStatusReadBodyOnFail(resp); err != nil {
-		return nil, err
-	}
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var items []ItemType
-	if err := json.Unmarshal(data, &items); err != nil {
-		return nil, err
-	}
-
-	idToName = make(map[int]string)
-	for _, item := range items {
-		idToName[item.Key()] = item.Value()
-	}
-	return idToName, nil
-}
-
 type v1Session struct {
-	ID   int
-	Name string
+	ID int
+	SessionWithoutID
 }
 
-func (s v1Session) Key() int {
+func (s v1Session) IDValue() int {
 	return s.ID
 }
 
-func (s v1Session) Value() string {
-	return s.Name
+func (s v1Session) IDField() string {
+	return "ID"
 }
 
-func (c *V1Client) ListSessions() (map[int]string, error) {
+func (s v1Session) SessionCommon() SessionWithoutID {
+	return s.SessionWithoutID
+}
+
+func (c *V1Client) ListSessions() ([]Session, error) {
 	resp, err := http.Get(c.endpoint + "/v1/sessions")
 	if err != nil {
 		return nil, err
 	}
 	defer closer.CloseAndWarnIfFail(resp.Body)
 
-	return verifyParseExtract[v1Session](resp)
+	data, err := VerifyStatusReadBodyAll(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	var items []v1Session
+	if err := json.Unmarshal(data, &items); err != nil {
+		return nil, err
+	}
+	return castUp(items), nil
 }
 
 func NewClient(endpoint string) *V1Client {

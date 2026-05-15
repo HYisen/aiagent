@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"runtime/debug"
-	"time"
 )
 
 type TokenProvider interface {
@@ -21,7 +20,7 @@ type V2Client struct {
 	userID        int
 }
 
-func (c *V2Client) ListSessions() (map[int]string, error) {
+func (c *V2Client) ListSessions() ([]Session, error) {
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v2/users/%d/sessions", c.endpoint, c.userID), nil)
 	if err != nil {
 		return nil, err
@@ -35,36 +34,29 @@ func (c *V2Client) ListSessions() (map[int]string, error) {
 	}
 	defer closer.CloseAndWarnIfFail(resp.Body)
 
-	return verifyParseExtract[v2Session](resp)
-}
-
-type Session interface {
-	Key() int
-	Value() string
+	data, err := VerifyStatusReadBodyAll(resp)
+	var items []v2Session
+	if err := json.Unmarshal(data, &items); err != nil {
+		return nil, err
+	}
+	return castUp(items), err
 }
 
 type v2Session struct {
 	ScopedID int
-	Name     string
-	model.ChatsDigest
+	SessionWithoutID
 }
 
-func (s v2Session) Key() int {
+func (s v2Session) IDValue() int {
 	return s.ScopedID
 }
 
-func (s v2Session) Value() string {
-	return fmt.Sprintf(
-		"%4d\t%s\t%s\t%s",
-		s.Rounds,
-		localShortDateTime(s.CreateTimeEpochMilli),
-		localShortDateTime(s.UpdateTimeEpochMilli),
-		s.Name,
-	)
+func (s v2Session) IDField() string {
+	return "ScopedID"
 }
 
-func localShortDateTime(epochMillis int64) string {
-	return time.UnixMilli(epochMillis).Local().Format(time.UnixDate)
+func (s v2Session) SessionCommon() SessionWithoutID {
+	return s.SessionWithoutID
 }
 
 func NewV2Client(endpoint string, tokenProvider TokenProvider, userID int) *V2Client {
