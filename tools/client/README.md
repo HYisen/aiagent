@@ -2,16 +2,17 @@
 
 client is a client that attaches aiagent server mode.
 
-Simulate aiagent REPL mode user experience.
-
-Its goal is to help me debug aiagent server mode, especially of chat stream API.
-
-Not supposed to become a full-fledged client.
-Therefore, most server API and not hard-coded configs would not be supported.
+Since the server has been deployed and shall be always online,
+client has become the official suggested way to interact with server,
+comparing to REPL mode or RESTFul endpoints without a client.
 
 ## Usage
 
-### Normal
+### Binary
+
+Checkout results of workflow client, the pipeline shall have pre-built binary for various platforms stored in artifacts.
+
+### IDE
 
 Change the code as you preferred, and use the lovely green triangle Run button of your IDE,
 run the `func main()` of `tools/client/main.go`.
@@ -29,8 +30,7 @@ git clone https://github.com/hyisen/aiagent
 
 cd aiagent
 
-# generate generated code
-go run tools/gen/main.go
+go generate ./...
 
 # build server
 go build
