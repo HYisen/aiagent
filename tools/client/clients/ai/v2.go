@@ -35,6 +35,10 @@ func (c *V2Client) ListSessions() ([]Session, error) {
 	defer closer.CloseAndWarnIfFail(resp.Body)
 
 	data, err := VerifyStatusReadBodyAll(resp)
+	if err != nil {
+		return nil, err
+	}
+
 	var items []v2Session
 	if err := json.Unmarshal(data, &items); err != nil {
 		return nil, err
