@@ -178,27 +178,30 @@ func digest(chats []model.ChatPart) ChatsDigests {
 	return sessionIDToChatsDigests
 }
 
+func extendSessionWithChatsDigest(sessions []*model.Session, cd ChatsDigests) []*model.SessionWithChatsDigest {
+	var ret []*model.SessionWithChatsDigest
+	for _, s := range sessions {
+		ret = append(ret, &model.SessionWithChatsDigest{
+			Session:     *s,
+			ChatsDigest: cd.GetOrDefault(s.ID),
+		})
+	}
+	return ret
+}
+
 func (r *Repository) FindWithChatsDigestByUserID(
 	ctx context.Context,
 	userID int,
 ) ([]*model.SessionWithChatsDigest, error) {
-	parts, err := generated.SessionChatQuery[any](r.db).FindChatPartByUserID(ctx, userID)
+	chats, err := generated.SessionChatQuery[any](r.db).FindChatPartByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	chatsDigests := digest(parts)
 
 	sessions, err := r.FindByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	var ret []*model.SessionWithChatsDigest
-	for _, s := range sessions {
-		ret = append(ret, &model.SessionWithChatsDigest{
-			Session:     *s,
-			ChatsDigest: chatsDigests.GetOrDefault(s.ID),
-		})
-	}
-	return ret, nil
+	return extendSessionWithChatsDigest(sessions, digest(chats)), nil
 }
