@@ -134,9 +134,33 @@ func (r *Repository) AppendChat(_ context.Context, _ int, _ *model.Chat) error {
 	return fmt.Errorf("AppendChat %w", errors.ErrUnsupported)
 }
 
-func digest(chats []model.ChatPart) (sessionIDToChatsDigests map[int]*model.ChatsDigest) {
+type ChatsDigests map[int]*model.ChatsDigest
+
+func (cd ChatsDigests) GetOrDefault(sessionID int) model.ChatsDigest {
+	ret, ok := cd[sessionID]
+	if !ok {
+		var keys string
+		if len(cd) > 8 { // A threshold within the ability of human visual check and log capacity.
+			keys = fmt.Sprintf("len=%d", len(cd))
+		} else {
+			keys = fmt.Sprintf("%v", slices.Collect(maps.Keys(cd)))
+		}
+		// CreateSession and its chats' creation are separate procedures.
+		// Session with empty chats are planned to be cleaned, but not guaranteed to be extinct.
+		slog.Warn("unmatched SessionChatsDigests", "sessionID", sessionID, "keys", keys)
+		dummyTime := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+		return model.ChatsDigest{
+			Rounds:               0,
+			CreateTimeEpochMilli: dummyTime,
+			UpdateTimeEpochMilli: dummyTime,
+		}
+	}
+	return *ret
+}
+
+func digest(chats []model.ChatPart) ChatsDigests {
 	farFuture := time.Now().Add(time.Hour) // Later than any possible chat time fetched later.
-	sessionIDToChatsDigests = make(map[int]*model.ChatsDigest)
+	sessionIDToChatsDigests := make(map[int]*model.ChatsDigest)
 	for _, part := range chats {
 		if sessionIDToChatsDigests[part.SessionID] == nil {
 			sessionIDToChatsDigests[part.SessionID] = &model.ChatsDigest{
@@ -162,7 +186,7 @@ func (r *Repository) FindWithChatsDigestByUserID(
 	if err != nil {
 		return nil, err
 	}
-	sessionIDToChatsDigests := digest(parts)
+	chatsDigests := digest(parts)
 
 	sessions, err := r.FindByUserID(ctx, userID)
 	if err != nil {
@@ -171,27 +195,9 @@ func (r *Repository) FindWithChatsDigestByUserID(
 
 	var ret []*model.SessionWithChatsDigest
 	for _, s := range sessions {
-		chatsDigest := sessionIDToChatsDigests[s.ID]
-		if chatsDigest == nil {
-			// CreateSession and its chats' creation are separate procedures.
-			// Session with empty chats are planned to be cleaned, but not guaranteed to be extinct.
-			slog.Warn(
-				"unmatched SessionChatsDigests",
-				"sessionID",
-				s.ID,
-				"keys",
-				slices.Collect(maps.Keys(sessionIDToChatsDigests)),
-			)
-			dummyTime := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
-			chatsDigest = &model.ChatsDigest{
-				Rounds:               0,
-				CreateTimeEpochMilli: dummyTime,
-				UpdateTimeEpochMilli: dummyTime,
-			}
-		}
 		ret = append(ret, &model.SessionWithChatsDigest{
 			Session:     *s,
-			ChatsDigest: *chatsDigest,
+			ChatsDigest: chatsDigests.GetOrDefault(s.ID),
 		})
 	}
 	return ret, nil
