@@ -48,38 +48,27 @@ func checkAndParseInitLine(s string) (isInitLine bool, createSession bool, oldSe
 	return true, false, id
 }
 
-// tryLoginIfCanOrSelf checks input e, return input itself if it can not be solved through login,
-// otherwise login and return nullable login error. When using this helper function,
-// developers are suggested to check err nil and do happy path first (opposite to handle err in guard closure first).
-// Use this to map non nil err, if err keeps non nil, handle err in guard closure and exit.
-// Otherwise, as the err turns nil, everything is okay, do receiver method again.
-func (h *ChatLineHandler) tryLoginIfCanOrSelf(e error) error {
-	if e == nil || !errors.Is(e, ai.ErrForbidden) {
-		return e
-	}
-	neo, err := h.client.UpgradeOptional()
-	if err != nil {
-		return err
-	}
-	if neo == nil {
-		return errors.Join(e, errors.New("client does not support upgrade"))
-	}
-	h.client = neo
-	return nil
-}
-
 func tryLoginOnceIfForbidden[ReturnType any](
 	h *ChatLineHandler,
 	fn func(c ai.Client) (ReturnType, error),
 ) (ReturnType, error) {
-	ret, err := fn(h.client)
-	if err == nil {
+	ret, errOne := fn(h.client)
+	if errOne == nil {
 		return ret, nil
 	}
-	err = h.tryLoginIfCanOrSelf(err)
-	if err != nil {
-		return ret, err
+	if !errors.Is(errOne, ai.ErrForbidden) {
+		return ret, errOne
 	}
+
+	// assert errors.Is(errOne, ai.ErrForbidden)
+	neo, errTwo := h.client.UpgradeOptional()
+	if errTwo != nil {
+		return ret, errTwo
+	}
+	if neo == nil {
+		return ret, errors.Join(errOne, errors.New("client does not support upgrade"))
+	}
+	h.client = neo
 	return fn(h.client)
 }
 
