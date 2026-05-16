@@ -5,7 +5,6 @@ import (
 	"aiagent/helpers/closer"
 	"aiagent/service/chat"
 	"aiagent/tools/client/keeper"
-	"aiagent/tools/client/ui"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -24,7 +23,8 @@ import (
 var ErrForbidden = errors.New("server responds 403")
 
 type V1Client struct {
-	endpoint string
+	endpoint  string
+	loginFunc LoginFunc
 }
 
 type v1Session struct {
@@ -63,14 +63,17 @@ func (c *V1Client) ListSessions() ([]Session, error) {
 	return castUp(items), nil
 }
 
-func NewClient(endpoint string) *V1Client {
+func NewClient(endpoint string, loginFunc LoginFunc) *V1Client {
 	return &V1Client{
-		endpoint: endpoint,
+		endpoint:  endpoint,
+		loginFunc: loginFunc,
 	}
 }
 
+type LoginFunc func() (username string, password string, err error)
+
 func (c *V1Client) UpgradeOptional() (neo Client, err error) {
-	username, password, err := ui.Login()
+	username, password, err := c.loginFunc()
 	if err != nil {
 		return nil, err
 	}
