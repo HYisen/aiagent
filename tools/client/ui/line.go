@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"log/slog"
+	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -48,41 +48,47 @@ func checkAndParseInitLine(s string) (isInitLine bool, createSession bool, oldSe
 	return true, false, id
 }
 
-func (h *ChatLineHandler) createSession() (idOrScopedID int, err error) {
-	id, errOne := h.client.CreateSession()
-	if errOne == nil || !errors.Is(errOne, ai.ErrForbidden) {
-		return id, errOne
+// tryLoginIfCanOrSelf checks input e, return input itself if it can not be solved through login,
+// otherwise login and return nullable login error. When using this helper function,
+// developers are suggested to check err nil and do happy path first (opposite to handle err in guard closure first).
+// Use this to map non nil err, if err keeps non nil, handle err in guard closure and exit.
+// Otherwise, as the err turns nil, everything is okay, do receiver method again.
+func (h *ChatLineHandler) tryLoginIfCanOrSelf(e error) error {
+	if e == nil || !errors.Is(e, ai.ErrForbidden) {
+		return e
 	}
-	neo, errTwo := h.client.UpgradeOptional()
-	if errTwo != nil {
-		return 0, errTwo
+	neo, err := h.client.UpgradeOptional()
+	if err != nil {
+		return err
 	}
 	if neo == nil {
-		return 0, errors.Join(errOne, errors.New("client does not support upgrade"))
+		return errors.Join(e, errors.New("client does not support upgrade"))
 	}
 	h.client = neo
+	return nil
+}
+
+func (h *ChatLineHandler) createSession() (idOrScopedID int, err error) {
+	id, err := h.client.CreateSession()
+	if err == nil {
+		return id, nil
+	}
+	if err = h.tryLoginIfCanOrSelf(err); err != nil {
+		return 0, err
+	}
 	return h.client.CreateSession()
 }
 
-// PrintVersion prints server version.
-func (h *ChatLineHandler) PrintVersion() error {
-	version, errOne := h.client.GetVersion()
-	if errOne == nil {
-		fmt.Println(version)
-		return nil
+func (h *ChatLineHandler) getVersion() (*debug.BuildInfo, error) {
+	version, err := h.client.GetVersion()
+	if err == nil {
+		return version, nil
 	}
-	if !errors.Is(errOne, ai.ErrForbidden) {
-		return errOne
+	err = h.tryLoginIfCanOrSelf(err)
+	if err != nil {
+		return nil, err
 	}
-	neo, errTwo := h.client.UpgradeOptional()
-	if errTwo != nil {
-		return errTwo
-	}
-	if neo == nil {
-		return errors.Join(errOne, errors.New("client does not support upgrade"))
-	}
-	h.client = neo
-	return h.PrintVersion()
+	return h.client.GetVersion()
 }
 
 func localShortDateTime(epochMillis int64) string {
@@ -107,11 +113,23 @@ func PrintSessionTable[T ai.Session](sessions []T) {
 	}
 }
 
+func (h *ChatLineHandler) listSessions() ([]ai.Session, error) {
+	sessions, err := h.client.ListSessions()
+	if err == nil {
+		return sessions, nil
+	}
+	err = h.tryLoginIfCanOrSelf(err)
+	if err != nil {
+		return nil, err
+	}
+	return h.client.ListSessions()
+}
+
 func (h *ChatLineHandler) HandleLine(line string) {
 	if line == ":ls" {
-		sessions, err := h.client.ListSessions()
+		sessions, err := h.listSessions()
 		if err != nil {
-			fmt.Printf("server error: %v\n", err)
+			fmt.Printf("List Sessions failed: %v\n", err)
 			return
 		}
 		slices.SortFunc(sessions, func(lhs ai.Session, rhs ai.Session) int {
@@ -121,9 +139,12 @@ func (h *ChatLineHandler) HandleLine(line string) {
 		return
 	}
 	if line == ":version" {
-		if err := h.PrintVersion(); err != nil {
-			slog.Error("PrintVersion failed", "err", err)
+		version, err := h.getVersion()
+		if err != nil {
+			fmt.Printf("Get Version failed: %v\n", err)
+			return
 		}
+		fmt.Println(version)
 		return
 	}
 
@@ -138,7 +159,7 @@ Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
 			fmt.Println("connecting...")
 			id, err := h.createSession()
 			if err != nil {
-				fmt.Printf("Create session failed: %v\n", err)
+				fmt.Printf("Create Session failed: %v\n", err)
 				return
 			}
 			h.sessionID = id
