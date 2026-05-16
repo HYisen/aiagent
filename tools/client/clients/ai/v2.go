@@ -18,6 +18,15 @@ type V2Client struct {
 	userID        int
 }
 
+func (c *V2Client) GetSession(id int) (model.Session, error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v2/users/%d/sessions/%d", c.endpoint, c.userID, id), nil)
+	if err != nil {
+		return model.Session{}, err
+	}
+	c.AttachToken(req)
+	return FetchAndParseJSON[model.Session](req)
+}
+
 func (c *V2Client) ListSessions() ([]Session, error) {
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v2/users/%d/sessions", c.endpoint, c.userID), nil)
 	if err != nil {

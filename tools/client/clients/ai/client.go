@@ -26,6 +26,14 @@ type V1Client struct {
 	loginFunc LoginFunc
 }
 
+func (c *V1Client) GetSession(id int) (model.Session, error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v1/sessions/%d", c.endpoint, id), nil)
+	if err != nil {
+		return model.Session{}, err
+	}
+	return FetchAndParseJSON[model.Session](req)
+}
+
 type v1Session struct {
 	ID int
 	SessionWithoutID

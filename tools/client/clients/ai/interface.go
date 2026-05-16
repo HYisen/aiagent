@@ -19,6 +19,7 @@ type Client interface {
 	UpgradeOptional() (neo Client, err error)
 	ListSessions() ([]Session, error)
 	GetVersion() (version *debug.BuildInfo, err error)
+	GetSession(id int) (model.Session, error)
 }
 
 // Session flats the difference between its implements [v1Session] and [v2Session],

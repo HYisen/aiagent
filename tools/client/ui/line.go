@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"aiagent/console"
 	"aiagent/tools/client/clients/ai"
 	"errors"
 	"fmt"
@@ -142,6 +143,23 @@ Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
 		} else {
 			h.sessionID = id
 			fmt.Printf("try continue on session id %d\n", h.sessionID)
+			session, err := h.client.GetSession(id)
+			if err != nil {
+				fmt.Printf("Get Session %d failed: %v\n", id, err)
+				return
+			}
+			fmt.Printf("session name = %s\n", session.Name)
+			for i, chat := range session.Chats {
+				// SoftWrap not supported as a glance of history is enough, and it's non-trivial to implement.
+				fmt.Printf("| #%4d %s\n", i, localShortDateTime(chat.CreateTime))
+				PrintWithPrefix("  ", chat.Input)
+				fmt.Printf("| model = %s FinishReason = %s\n", chat.Result.Model, chat.Result.FinishReason)
+				PrintWithPrefix("  ", chat.Result.ReasoningContent)
+				PrintWithPrefix("  ", console.COTEndMessage())
+				PrintWithPrefix("  ", chat.Result.Content)
+				usage := ai.OpenAIUsage(chat.Result.ChatCompletion().Usage)
+				fmt.Printf("| %s\n\n", ai.PriceOrDefault(chat.Result.Model).Cost(usage))
+			}
 		}
 		h.initialized = true
 		return
@@ -152,6 +170,13 @@ Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
 		log.Fatal(err)
 	}
 	printWithSoftWrap(h.swo, words)
+}
+
+func PrintWithPrefix(linePrefix string, multiLine string) {
+	for line := range strings.SplitSeq(multiLine, "\n") {
+		fmt.Print(linePrefix)
+		fmt.Println(line)
+	}
 }
 
 func printWithSoftWrap(opts SoftWrapOptions, words <-chan string) {
