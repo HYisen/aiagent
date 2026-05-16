@@ -2,8 +2,6 @@ package ai
 
 import (
 	"aiagent/clients/model"
-	"aiagent/helpers/closer"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -28,19 +26,8 @@ func (c *V2Client) ListSessions() ([]Session, error) {
 
 	c.AttachToken(req)
 
-	resp, err := http.DefaultClient.Do(req)
+	items, err := FetchAndParseJSON[[]v2Session](req)
 	if err != nil {
-		return nil, err
-	}
-	defer closer.CloseAndWarnIfFail(resp.Body)
-
-	data, err := VerifyStatusReadBodyAll(resp)
-	if err != nil {
-		return nil, err
-	}
-
-	var items []v2Session
-	if err := json.Unmarshal(data, &items); err != nil {
 		return nil, err
 	}
 	return castUp(items), err
@@ -79,13 +66,8 @@ func (c *V2Client) CreateSession() (id int, error error) {
 
 	c.AttachToken(req)
 
-	data, err := doRequestAndVerifyStatusReadBodyAll(req)
+	session, err := FetchAndParseJSON[model.Session](req)
 	if err != nil {
-		return 0, err
-	}
-
-	var session model.Session
-	if err := json.Unmarshal(data, &session); err != nil {
 		return 0, err
 	}
 	return session.ScopedID, nil
@@ -122,15 +104,6 @@ func (c *V2Client) GetVersion() (version *debug.BuildInfo, err error) {
 		return nil, err
 	}
 	c.AttachToken(req)
-
-	data, err := doRequestAndVerifyStatusReadBodyAll(req)
-	if err != nil {
-		return nil, err
-	}
-
-	version = &debug.BuildInfo{}
-	if err := json.Unmarshal(data, version); err != nil {
-		return nil, err
-	}
-	return version, nil
+	v, err := FetchAndParseJSON[debug.BuildInfo](req)
+	return &v, err
 }

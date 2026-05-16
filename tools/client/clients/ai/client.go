@@ -1,6 +1,7 @@
 package ai
 
 import (
+	"aiagent/clients/model"
 	"aiagent/clients/openai"
 	"aiagent/helpers/closer"
 	"aiagent/service/chat"
@@ -10,12 +11,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"runtime/debug"
-	"strconv"
 
 	"github.com/hyisen/wf"
 )
@@ -45,19 +44,12 @@ func (s v1Session) SessionCommon() SessionWithoutID {
 }
 
 func (c *V1Client) ListSessions() ([]Session, error) {
-	resp, err := http.Get(c.endpoint + "/v1/sessions")
+	req, err := http.NewRequest(http.MethodGet, c.endpoint+"/v1/sessions", nil)
 	if err != nil {
 		return nil, err
 	}
-	defer closer.CloseAndWarnIfFail(resp.Body)
-
-	data, err := VerifyStatusReadBodyAll(resp)
+	items, err := FetchAndParseJSON[[]v1Session](req)
 	if err != nil {
-		return nil, err
-	}
-
-	var items []v1Session
-	if err := json.Unmarshal(data, &items); err != nil {
 		return nil, err
 	}
 	return castUp(items), nil
@@ -103,45 +95,12 @@ func (c *V1Client) serverHost() string {
 	return fmt.Sprintf("%s://%s", u.Scheme, u.Host)
 }
 
-func doRequestAndVerifyStatusReadBodyAll(req *http.Request) (responsePayload []byte, err error) {
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func(c io.Closer) {
-		err = errors.Join(err, c.Close())
-	}(resp.Body)
-	return VerifyStatusReadBodyAll(resp)
-}
-
-func VerifyStatusReadBodyAll(resp *http.Response) (responsePayload []byte, err error) {
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode == http.StatusForbidden {
-		return nil, fmt.Errorf("%w: %s", ErrForbidden, string(data))
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected response status code %d: %s", resp.StatusCode, string(data))
-	}
-	return data, nil
-}
-
-func (c *V1Client) CreateSession() (id int, error error) {
+func (c *V1Client) CreateSession() (id int, err error) {
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/v1/sessions", c.endpoint), nil)
 	if err != nil {
 		return 0, err
 	}
-	data, err := doRequestAndVerifyStatusReadBodyAll(req)
-	if err != nil {
-		return 0, err
-	}
-	num, err := strconv.Atoi(string(data))
-	if err != nil {
-		return 0, err
-	}
-	return num, nil
+	return FetchAndParseJSON[int](req)
 }
 
 func newChatRequest(url string, content string) (*http.Request, error) {
@@ -187,20 +146,14 @@ func (c *V1Client) Chat(sessionID int, content string) (words <-chan string, err
 }
 
 func (c *V1Client) GetVersion() (version *debug.BuildInfo, err error) {
-	resp, err := http.Get(fmt.Sprintf("%s/v1/build-info", c.endpoint))
-	if err != nil {
-		return nil, err
-	}
-	defer closer.CloseAndWarnIfFail(resp.Body)
-
-	data, err := VerifyStatusReadBodyAll(resp)
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v1/build-info", c.endpoint), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	version = &debug.BuildInfo{}
-	if err := json.Unmarshal(data, version); err != nil {
+	v, err := FetchAndParseJSON[debug.BuildInfo](req)
+	if err != nil {
 		return nil, err
 	}
-	return version, nil
+	return &v, nil
 }
