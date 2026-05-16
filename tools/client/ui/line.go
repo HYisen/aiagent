@@ -68,27 +68,19 @@ func (h *ChatLineHandler) tryLoginIfCanOrSelf(e error) error {
 	return nil
 }
 
-func (h *ChatLineHandler) createSession() (idOrScopedID int, err error) {
-	id, err := h.client.CreateSession()
+func tryLoginOnceIfForbidden[ReturnType any](
+	h *ChatLineHandler,
+	fn func(c ai.Client) (ReturnType, error),
+) (ReturnType, error) {
+	ret, err := fn(h.client)
 	if err == nil {
-		return id, nil
-	}
-	if err = h.tryLoginIfCanOrSelf(err); err != nil {
-		return 0, err
-	}
-	return h.client.CreateSession()
-}
-
-func (h *ChatLineHandler) getVersion() (*debug.BuildInfo, error) {
-	version, err := h.client.GetVersion()
-	if err == nil {
-		return version, nil
+		return ret, nil
 	}
 	err = h.tryLoginIfCanOrSelf(err)
 	if err != nil {
-		return nil, err
+		return ret, err
 	}
-	return h.client.GetVersion()
+	return fn(h.client)
 }
 
 func localShortDateTime(epochMillis int64) string {
@@ -113,21 +105,11 @@ func PrintSessionTable[T ai.Session](sessions []T) {
 	}
 }
 
-func (h *ChatLineHandler) listSessions() ([]ai.Session, error) {
-	sessions, err := h.client.ListSessions()
-	if err == nil {
-		return sessions, nil
-	}
-	err = h.tryLoginIfCanOrSelf(err)
-	if err != nil {
-		return nil, err
-	}
-	return h.client.ListSessions()
-}
-
 func (h *ChatLineHandler) HandleLine(line string) {
 	if line == ":ls" {
-		sessions, err := h.listSessions()
+		sessions, err := tryLoginOnceIfForbidden(h, func(c ai.Client) ([]ai.Session, error) {
+			return c.ListSessions()
+		})
 		if err != nil {
 			fmt.Printf("List Sessions failed: %v\n", err)
 			return
@@ -139,7 +121,9 @@ func (h *ChatLineHandler) HandleLine(line string) {
 		return
 	}
 	if line == ":version" {
-		version, err := h.getVersion()
+		version, err := tryLoginOnceIfForbidden(h, func(c ai.Client) (*debug.BuildInfo, error) {
+			return c.GetVersion()
+		})
 		if err != nil {
 			fmt.Printf("Get Version failed: %v\n", err)
 			return
@@ -157,7 +141,9 @@ Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
 	if isInitLine {
 		if createSession {
 			fmt.Println("connecting...")
-			id, err := h.createSession()
+			id, err := tryLoginOnceIfForbidden(h, func(c ai.Client) (int, error) {
+				return c.CreateSession()
+			})
 			if err != nil {
 				fmt.Printf("Create Session failed: %v\n", err)
 				return
