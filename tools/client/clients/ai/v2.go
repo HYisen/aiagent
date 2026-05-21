@@ -2,11 +2,10 @@ package ai
 
 import (
 	"aiagent/clients/model"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
+	"runtime/debug"
 )
 
 type TokenProvider interface {
@@ -19,9 +18,45 @@ type V2Client struct {
 	userID        int
 }
 
-func (c *V2Client) ListSessions() (map[int]string, error) {
-	//TODO implement me
-	panic("implement me")
+func (c *V2Client) GetSession(id int) (model.Session, error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v2/users/%d/sessions/%d", c.endpoint, c.userID, id), nil)
+	if err != nil {
+		return model.Session{}, err
+	}
+	c.AttachToken(req)
+	return FetchAndParseJSON[model.Session](req)
+}
+
+func (c *V2Client) ListSessions() ([]Session, error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v2/users/%d/sessions", c.endpoint, c.userID), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	c.AttachToken(req)
+
+	items, err := FetchAndParseJSON[[]v2Session](req)
+	if err != nil {
+		return nil, err
+	}
+	return castUp(items), err
+}
+
+type v2Session struct {
+	ScopedID int
+	SessionWithoutID
+}
+
+func (s v2Session) IDValue() int {
+	return s.ScopedID
+}
+
+func (s v2Session) IDField() string {
+	return "ScopedID"
+}
+
+func (s v2Session) SessionCommon() SessionWithoutID {
+	return s.SessionWithoutID
 }
 
 func NewV2Client(endpoint string, tokenProvider TokenProvider, userID int) *V2Client {
@@ -40,13 +75,8 @@ func (c *V2Client) CreateSession() (id int, error error) {
 
 	c.AttachToken(req)
 
-	data, err := doRequestAndHandleResponse(req)
+	session, err := FetchAndParseJSON[model.Session](req)
 	if err != nil {
-		return 0, err
-	}
-
-	var session model.Session
-	if err := json.Unmarshal(data, &session); err != nil {
 		return 0, err
 	}
 	return session.ScopedID, nil
@@ -77,10 +107,12 @@ func (c *V2Client) AttachToken(req *http.Request) {
 	req.Header.Set("Token", token)
 }
 
-func (c *V1Client) serverHost() string {
-	u, err := url.Parse(c.endpoint)
+func (c *V2Client) GetVersion() (version *debug.BuildInfo, err error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v1/build-info", c.endpoint), nil)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	return fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+	c.AttachToken(req)
+	v, err := FetchAndParseJSON[debug.BuildInfo](req)
+	return &v, err
 }

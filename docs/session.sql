@@ -19,3 +19,9 @@ VALUES (NULL, 'one', NULL, 0),
 
 SELECT id, name, user_id
 FROM sessions;
+
+SELECT chats.id, session_id, create_time
+FROM chats
+         LEFT JOIN sessions ON chats.session_id = sessions.id
+WHERE user_id = 1000
+ORDER BY chats.session_id;

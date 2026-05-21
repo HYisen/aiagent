@@ -18,7 +18,7 @@ COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # The install path is suggested by https://go.dev/doc/install.
 # I choosed that version because it's the lateset and matchs server machine.
-ADD "https://go.dev/dl/go1.24.1.linux-amd64.tar.gz" go.tar.gz
+ADD "https://go.dev/dl/go1.26.2.linux-amd64.tar.gz" go.tar.gz
 RUN tar -C /usr/local -xzf go.tar.gz
 # However we don't modify $PATH, because the base image contains go1.6.1.
 # And that's also why we use /usr/local/go/bin/go rather than go later.
@@ -39,7 +39,7 @@ COPY . /app
 WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/go-build \
   /usr/local/go/bin/go mod download
-RUN /usr/local/go/bin/go run tools/gen/main.go # generate generated code
+RUN /usr/local/go/bin/go generate ./...
 RUN /usr/local/go/bin/go build
 
 FROM scratch

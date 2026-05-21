@@ -84,5 +84,5 @@ func CostMessage(data string) string {
 	if err := json.Unmarshal([]byte(data), &usage); err != nil {
 		return fmt.Sprintf("err: %v", err)
 	}
-	return "estimated cost " + NewDeepSeekReasonerPrice().Cost(OpenAIUsage(usage))
+	return "estimated cost " + PriceOrDefault(openai.ChatModelDeepSeekV4Pro).Cost(OpenAIUsage(usage))
 }

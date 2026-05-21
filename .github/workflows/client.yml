@@ -1,0 +1,57 @@
+name: client
+
+on:
+  push:
+    branches-ignore: [ "master" ]
+    paths:
+      - "tools/client/**" # Focus on client only. Pretend dependencies versions does not matter.
+      - ".github/workflows/client.yml"
+
+env:
+  OUTPUT_PATH: out
+  TARGET_PATH: ./tools/client
+  BINARY_NAME: client
+  ZIPPED_NAME: clients.tar.gz
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        # As client cares less about versions, we don't hack to allow fetch tags for Go BuildInfo pseudo version here.
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Generate codes
+        run: go generate ./...
+
+      - name: Test
+        run: go test $TARGET_PATH/...
+
+      - name: Build
+        # Name ARCH OS based on what I am using, not quite specific.
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o ${OUTPUT_PATH}/${BINARY_NAME}_Linux $TARGET_PATH
+          GOOS=darwin GOARCH=arm64 go build -o ${OUTPUT_PATH}/${BINARY_NAME}_macOS $TARGET_PATH
+          GOOS=windows GOARCH=amd64 go build -o ${OUTPUT_PATH}/${BINARY_NAME}_Windows.exe $TARGET_PATH
+
+      - name: Tarball
+        # To avoid `chmod` after download. ref https://github.com/actions/upload-artifact#permission-loss
+        run: tar -czvf $ZIPPED_NAME -C $OUTPUT_PATH .
+
+      - name: Archive
+        id: archive
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ env.ZIPPED_NAME }}
+          if-no-files-found: error
+          overwrite: true # The latest client is always better.
+          archive: false

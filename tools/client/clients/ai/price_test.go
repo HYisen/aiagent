@@ -1,8 +1,9 @@
 package ai
 
 import (
-	"golang.org/x/text/currency"
 	"testing"
+
+	"golang.org/x/text/currency"
 )
 
 type Stat [3]int
@@ -31,7 +32,7 @@ func TestPriceMillPerMToken_Cost(t *testing.T) {
 			CachedInput: 1_000,
 			Output:      1_000_000_000,
 			Unit:        currency.XAG,
-		}, Stat([3]int{1, 2, 3}), "3001.002 XAG"},
+		}, Stat([3]int{1000, 2000, 3000}), "3001.002 XAG"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -2,14 +2,15 @@
 # results in a even smaller binary...
 
 # latest version
-FROM golang:1.24.1-alpine3.21 AS build
+FROM golang:1.26.2-alpine3.23 AS build
 
-RUN apk add gcc musl-dev
+RUN apk add gcc musl-dev git # git for vcs in debug.BuildInfo
 WORKDIR /app
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/go-build \
   go mod download
-RUN go run tools/gen/main.go
+RUN go generate ./...
+RUN go test ./...
 RUN env CGO_ENABLED=1 go build -ldflags '-extldflags "-static"'
 
 FROM scratch

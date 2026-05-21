@@ -1,13 +1,13 @@
 package openai
 
 import (
+	"aiagent/helpers/closer"
 	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -44,6 +44,15 @@ func (c *Client) chat(ctx context.Context, request RequestWhole) (body io.ReadCl
 	if err != nil {
 		return nil, err
 	}
+	if resp.StatusCode != http.StatusOK {
+		// typical 400 as my fault of not well-prepared request
+		payload, e := io.ReadAll(resp.Body)
+		closer.CloseAndWarnIfFail(resp.Body)
+		if e != nil {
+			payload = []byte(fmt.Sprintf("read payload error: %s", e.Error()))
+		}
+		return nil, fmt.Errorf("unexpected status code %d body %s", resp.StatusCode, string(payload))
+	}
 	return resp.Body, nil
 }
 
@@ -55,7 +64,7 @@ func (c *Client) OneShot(ctx context.Context, request Request) (*ChatCompletion,
 	if err != nil {
 		return nil, err
 	}
-	defer CloseAndWarnIfFail(body)
+	defer closer.CloseAndWarnIfFail(body)
 
 	var response Response
 	if err := json.NewDecoder(body).Decode(&response); err != nil {
@@ -64,17 +73,10 @@ func (c *Client) OneShot(ctx context.Context, request Request) (*ChatCompletion,
 	return &response.ChatCompletion, nil
 }
 
-func CloseAndWarnIfFail(c io.Closer) {
-	err := c.Close()
-	if err != nil {
-		log.Printf("warn: potential resource leak as failed to close body: %v", err)
-	}
-}
-
 // translateStream read and parse message body and output to channel.
 // Once it's done, both body and output would be closed.
 func translateStream(body io.ReadCloser, output chan<- ChatCompletionChunkOrError) error {
-	defer CloseAndWarnIfFail(body)
+	defer closer.CloseAndWarnIfFail(body)
 	defer close(output)
 
 	scanner := bufio.NewScanner(body)

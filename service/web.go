@@ -7,16 +7,19 @@ import (
 	sc "aiagent/service/chat"
 	"context"
 	"encoding/json"
-	"github.com/hyisen/wf"
 	"net/http"
 	"reflect"
+	"runtime/debug"
 	"time"
+
+	"github.com/hyisen/wf"
 )
 
 type Service struct {
 	v1          *V1Service
 	v2          *V2Service
 	chatService *sc.Service
+	buildInfo   *debug.BuildInfo
 	web         *wf.Web
 }
 
@@ -35,17 +38,19 @@ func New(
 	client *openai.Client,
 	sessionRepository *session.Repository,
 	chatRepository *chat.Repository,
+	buildInfo *debug.BuildInfo,
 ) *Service {
 	ret := &Service{
 		web:         nil,
 		v1:          NewV1Service(sessionRepository),
 		v2:          NewV2Service(sessionRepository),
 		chatService: sc.NewService(client, chatRepository, sessionRepository),
+		buildInfo:   buildInfo,
 	}
 
 	v1PostSession := wf.NewJSONHandler(
 		wf.Exact(http.MethodPost, "/v1/sessions"),
-		reflect.TypeOf(wf.Empty{}),
+		reflect.TypeFor[wf.Empty](),
 		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
 			return ret.v1.CreateSession(ctx)
 		},
@@ -53,7 +58,7 @@ func New(
 
 	v1GetSessions := wf.NewJSONHandler(
 		wf.Exact(http.MethodGet, "/v1/sessions"),
-		reflect.TypeOf(wf.Empty{}),
+		reflect.TypeFor[wf.Empty](),
 		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
 			return ret.v1.FindSessions(ctx)
 		},
@@ -71,7 +76,7 @@ func New(
 
 	v1PostSessionChatPathSuffix := "/chat"
 	v1PostSessionChatPathIDParser := wf.PathIDParser(v1PostSessionChatPathSuffix)
-	v1PostSessionChatPayloadParser := wf.JSONParser(reflect.TypeOf(sc.RequestPayload{}))
+	v1PostSessionChatPayloadParser := wf.JSONParser(reflect.TypeFor[sc.RequestPayload]())
 	v1PostSessionChatMatcher := wf.ResourceWithID(http.MethodPost, "/v1/sessions/", v1PostSessionChatPathSuffix)
 	v1PostSessionChatParser := func(data []byte, path string) (any, error) {
 		id, err := v1PostSessionChatPathIDParser(nil, path)
@@ -197,6 +202,13 @@ func New(
 	)
 	v2PostSessionChatStream.Timeout = chatTimeout()
 
+	v1GetBuildInfo := wf.NewJSONHandler(
+		wf.Exact(http.MethodGet, "/v1/build-info"),
+		reflect.TypeFor[wf.Empty](),
+		func(ctx context.Context, _ any) (rsp any, codedError *wf.CodedError) {
+			return ret.buildInfo, nil
+		})
+
 	ret.web = wf.NewWeb(
 		false,
 		v1PostSession,
@@ -209,6 +221,7 @@ func New(
 		v2GetSession,
 		v2PostSessionChat,
 		v2PostSessionChatStream,
+		v1GetBuildInfo,
 	)
 	return ret
 }

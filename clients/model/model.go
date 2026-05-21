@@ -2,6 +2,9 @@
 // It's not mandatory; just comparing to the other choice to implement GenInternalDoName for many times,
 // I would rather pull all the structs needed together here.
 // See https://github.com/go-gorm/gen/issues/971
+
+//go:generate go run gen.go
+
 package model
 
 import (
@@ -17,7 +20,36 @@ type Session struct {
 	Chats    []*Chat `gorm:"foreignkey:SessionID"`
 }
 
-func (s *Session) SessionWithID() *SessionWithID {
+type SessionWithChatsDigest struct {
+	Session
+	ChatsDigest
+}
+
+// WithID overrides JSON ignore indicator on ID, returns same Go item but has ID in JSON avatar.
+func (s *SessionWithChatsDigest) WithID() *SessionWithChatsDigestAndID {
+	return &SessionWithChatsDigestAndID{
+		ID:                     s.ID,
+		SessionWithChatsDigest: *s,
+	}
+}
+
+type SessionWithChatsDigestAndID struct {
+	ID int
+	SessionWithChatsDigest
+}
+
+type ChatsDigest struct {
+	Rounds int
+	// There were `CreatedAt time.Time` and its update counterpart.
+	// But witnessed the string format DateTime in JSON, I think twice and concludes that
+	// 1. The [time.Time] feature is not used on server yet, it's transparent.
+	// 2. Clients have no reason to get the TimeZone info leaks from [time.Time].
+	// 3. Despite Go client can parse its string type timestamp in JSON, EpochMill is easier cross-language.
+	CreateTimeEpochMilli int64
+	UpdateTimeEpochMilli int64
+}
+
+func (s *Session) WithID() *SessionWithID {
 	return &SessionWithID{
 		ID:      s.ID,
 		Session: *s,
@@ -46,11 +78,15 @@ func (s *Session) History() []openai.Message {
 }
 
 type Chat struct {
+	ChatPart
+	Input  string
+	Result *Result `gorm:"foreignkey:ChatID"`
+}
+
+type ChatPart struct {
 	ID         int `json:"-"`
 	SessionID  int `json:"-"`
-	Input      string
 	CreateTime int64
-	Result     *Result `gorm:"foreignkey:ChatID"`
 }
 
 func (c *Chat) Chat() *openai.Chat {

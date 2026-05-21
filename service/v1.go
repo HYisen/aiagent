@@ -5,9 +5,10 @@ import (
 	"aiagent/clients/session"
 	"context"
 	"errors"
+	"net/http"
+
 	"github.com/hyisen/wf"
 	"gorm.io/gorm"
-	"net/http"
 )
 
 type V1Service struct {
@@ -33,15 +34,15 @@ func (s *V1Service) CreateSession(ctx context.Context) (int, *wf.CodedError) {
 	return id, nil
 }
 
-func (s *V1Service) FindSessions(ctx context.Context) ([]*model.SessionWithID, *wf.CodedError) {
+func (s *V1Service) FindSessions(ctx context.Context) ([]*model.SessionWithChatsDigestAndID, *wf.CodedError) {
 	items, err := s.sessionRepository.FindAll(ctx)
 	if err != nil {
 		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
 
-	var ret []*model.SessionWithID
+	var ret []*model.SessionWithChatsDigestAndID
 	for _, item := range items {
-		ret = append(ret, item.SessionWithID())
+		ret = append(ret, item.WithID())
 	}
 	return ret, nil
 }
@@ -54,5 +55,5 @@ func (s *V1Service) FindSessionByID(ctx context.Context, id int) (*model.Session
 	if err != nil {
 		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
-	return ret.SessionWithID(), nil
+	return ret.WithID(), nil
 }

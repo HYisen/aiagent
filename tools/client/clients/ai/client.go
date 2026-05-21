@@ -1,78 +1,79 @@
 package ai
 
 import (
+	"aiagent/clients/model"
 	"aiagent/clients/openai"
+	"aiagent/helpers/closer"
 	"aiagent/service/chat"
 	"aiagent/tools/client/keeper"
-	"aiagent/tools/client/ui"
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hyisen/wf"
-	"io"
+	"log"
 	"net/http"
-	"strconv"
+	"net/url"
+	"runtime/debug"
+
+	"github.com/hyisen/wf"
 )
 
 var ErrForbidden = errors.New("server responds 403")
 
 type V1Client struct {
-	endpoint string
+	endpoint  string
+	loginFunc LoginFunc
 }
 
-func VerifyStatusReadBodyOnFail(resp *http.Response) error {
-	if resp.StatusCode == http.StatusOK {
-		return nil
-	}
-	data, err := io.ReadAll(resp.Body)
+func (c *V1Client) GetSession(id int) (model.Session, error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v1/sessions/%d", c.endpoint, id), nil)
 	if err != nil {
-		return fmt.Errorf("unexpected http status code %d no body %v", resp.StatusCode, err)
+		return model.Session{}, err
 	}
-	return fmt.Errorf("unexpected http status code %d: %s", resp.StatusCode, string(data))
+	return FetchAndParseJSON[model.Session](req)
 }
 
-func (c *V1Client) ListSessions() (map[int]string, error) {
-	resp, err := http.Get(c.endpoint + "/v1/sessions")
-	if err != nil {
-		return nil, err
-	}
-	defer openai.CloseAndWarnIfFail(resp.Body)
-
-	if err := VerifyStatusReadBodyOnFail(resp); err != nil {
-		return nil, err
-	}
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	type session struct {
-		ID   int
-		Name string
-	}
-	var items []session
-	if err := json.Unmarshal(data, &items); err != nil {
-		return nil, err
-	}
-
-	idToName := make(map[int]string)
-	for _, item := range items {
-		idToName[item.ID] = item.Name
-	}
-	return idToName, nil
+type v1Session struct {
+	ID int
+	SessionWithoutID
 }
 
-func NewClient(endpoint string) *V1Client {
+func (s v1Session) IDValue() int {
+	return s.ID
+}
+
+func (s v1Session) IDField() string {
+	return "ID"
+}
+
+func (s v1Session) SessionCommon() SessionWithoutID {
+	return s.SessionWithoutID
+}
+
+func (c *V1Client) ListSessions() ([]Session, error) {
+	req, err := http.NewRequest(http.MethodGet, c.endpoint+"/v1/sessions", nil)
+	if err != nil {
+		return nil, err
+	}
+	items, err := FetchAndParseJSON[[]v1Session](req)
+	if err != nil {
+		return nil, err
+	}
+	return castUp(items), nil
+}
+
+func NewClient(endpoint string, loginFunc LoginFunc) *V1Client {
 	return &V1Client{
-		endpoint: endpoint,
+		endpoint:  endpoint,
+		loginFunc: loginFunc,
 	}
 }
+
+type LoginFunc func() (username string, password string, err error)
 
 func (c *V1Client) UpgradeOptional() (neo Client, err error) {
-	username, password, err := ui.Login()
+	username, password, err := c.loginFunc()
 	if err != nil {
 		return nil, err
 	}
@@ -94,48 +95,26 @@ func (c *V1Client) UpgradeOptional() (neo Client, err error) {
 	return neo, nil
 }
 
-func doRequestAndHandleResponse(req *http.Request) (responsePayload []byte, err error) {
-	resp, err := http.DefaultClient.Do(req)
+func (c *V1Client) serverHost() string {
+	u, err := url.Parse(c.endpoint)
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
-	defer func(c io.Closer) {
-		err = errors.Join(err, c.Close())
-	}(resp.Body)
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode == http.StatusForbidden {
-		return nil, fmt.Errorf("%w: %s", ErrForbidden, string(data))
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected response status code %d: %s", resp.StatusCode, string(data))
-	}
-	return data, nil
+	return fmt.Sprintf("%s://%s", u.Scheme, u.Host)
 }
 
-func (c *V1Client) CreateSession() (id int, error error) {
+func (c *V1Client) CreateSession() (id int, err error) {
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/v1/sessions", c.endpoint), nil)
 	if err != nil {
 		return 0, err
 	}
-	data, err := doRequestAndHandleResponse(req)
-	if err != nil {
-		return 0, err
-	}
-	num, err := strconv.Atoi(string(data))
-	if err != nil {
-		return 0, err
-	}
-	return num, nil
+	return FetchAndParseJSON[int](req)
 }
 
 func newChatRequest(url string, content string) (*http.Request, error) {
 	payload := &chat.RequestPayload{
 		Content: content,
-		Model:   openai.ChatModelDeepSeekR1,
+		Model:   openai.ChatModelDeepSeekV4Pro,
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -156,6 +135,7 @@ func doAndHandleResponse(req *http.Request) (words <-chan string, err error) {
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
+		closer.CloseAndWarnIfFail(resp.Body)
 		return nil, fmt.Errorf("bad status %d %s", resp.StatusCode, resp.Status)
 	}
 
@@ -171,4 +151,17 @@ func (c *V1Client) Chat(sessionID int, content string) (words <-chan string, err
 		return nil, err
 	}
 	return doAndHandleResponse(req)
+}
+
+func (c *V1Client) GetVersion() (version *debug.BuildInfo, err error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v1/build-info", c.endpoint), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	v, err := FetchAndParseJSON[debug.BuildInfo](req)
+	if err != nil {
+		return nil, err
+	}
+	return &v, nil
 }

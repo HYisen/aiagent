@@ -11,15 +11,17 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/hyisen/wf"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 	"log"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
+	"runtime/debug"
 	"time"
+
+	"github.com/hyisen/wf"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 var DeepSeekAPIKey = flag.String("DeepSeekAPIKey", "this_is_a_secret", "API Key from platform.deepseek.com/api_keys")
@@ -84,7 +86,11 @@ func server() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	s := service.New(client, sr, cr)
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		log.Fatal("no build info")
+	}
+	s := service.New(client, sr, cr, bi)
 	local, err := url.Parse(fmt.Sprintf("http://localhost:%d", *port))
 	if err != nil {
 		log.Fatal(err)
@@ -111,10 +117,11 @@ func NewREPLLineHandler(client *openai.Client) *REPLLineHandler {
 func (h *REPLLineHandler) HandleLine(line string) {
 	h.history = append(h.history, openai.NewUserMessage(line))
 	fmt.Printf("sending with history size %d\n", len(h.history))
-	cc, err := h.client.OneShotStream(context.Background(), openai.Request{
-		Messages: h.history,
-		Model:    openai.ChatModelDeepSeekR1,
-	}, console.NewPrintWordChannel())
+	cc, err := h.client.OneShotStream(context.Background(), openai.NewRequest(
+		h.history,
+		openai.ChatModelDeepSeekV4Pro,
+		openai.ReasoningEffortHigh,
+	), console.NewPrintWordChannel())
 	if err != nil {
 		if errors.Is(err, openai.ErrUpstream) {
 			log.Printf("Poped question history because of upstream error: %v", err)
@@ -135,13 +142,14 @@ func repl() {
 
 func basic() {
 	client := openai.New("https://api.deepseek.com", *DeepSeekAPIKey)
-	req := openai.Request{
-		Messages: []openai.Message{{
+	req := openai.NewRequest(
+		[]openai.Message{{
 			Role:    "user",
 			Content: "say this is a test",
 		}},
-		Model: openai.ChatModelDeepSeekR1,
-	}
+		openai.ChatModelDeepSeekV4Flash,
+		openai.ReasoningEffortNone,
+	)
 
 	rsp, err := client.OneShot(context.Background(), req)
 	if err != nil {

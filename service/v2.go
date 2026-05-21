@@ -5,9 +5,10 @@ import (
 	"aiagent/clients/session"
 	"context"
 	"errors"
+	"net/http"
+
 	"github.com/hyisen/wf"
 	"gorm.io/gorm"
-	"net/http"
 )
 
 type V2Service struct {
@@ -30,8 +31,11 @@ func (s *V2Service) CreateSessionByUserID(ctx context.Context, userID int) (crea
 	return ret, nil
 }
 
-func (s *V2Service) FindSessionsByUserID(ctx context.Context, userID int) ([]*model.Session, *wf.CodedError) {
-	ret, err := s.sessionRepository.FindByUserID(ctx, userID)
+func (s *V2Service) FindSessionsByUserID(
+	ctx context.Context,
+	userID int,
+) ([]*model.SessionWithChatsDigest, *wf.CodedError) {
+	ret, err := s.sessionRepository.FindWithChatsDigestByUserID(ctx, userID)
 	if err != nil {
 		return nil, wf.NewCodedError(http.StatusInternalServerError, err)
 	}
