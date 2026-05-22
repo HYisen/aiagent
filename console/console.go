@@ -113,8 +113,6 @@ type LineHandler interface {
 	HandleLine(line string)
 }
 
-type HandleLineFunc func(line string)
-
 func (c *Controller) Run() {
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Printf("hint: input %s to escape\n", c.opts.EscapeLine)
