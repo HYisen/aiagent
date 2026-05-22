@@ -110,6 +110,15 @@ type REPLLineHandler struct {
 	client  *openai.Client
 }
 
+func (h *REPLLineHandler) HandleInput(content string) {
+	h.HandleLine(content)
+	// Previous code shall work. Remove panic if it's called in reality.
+	// This func is implemented because it's simple, not designed to be called.
+	// It indicates interface [console.LineHandler] is somehow corrupted.
+	// I shall refactor if it gets worse.
+	panic("unreachable")
+}
+
 func NewREPLLineHandler(client *openai.Client) *REPLLineHandler {
 	return &REPLLineHandler{client: client}
 }
@@ -136,7 +145,7 @@ func (h *REPLLineHandler) HandleLine(line string) {
 func repl() {
 	client := openai.New("https://api.deepseek.com", *DeepSeekAPIKey)
 	handler := NewREPLLineHandler(client)
-	controller := console.NewController(handler, console.NewDefaultOptions())
+	controller := console.NewController(handler, console.NewDefaultOptions(), &console.NotMultiLineChecker{})
 	controller.Run()
 }
 

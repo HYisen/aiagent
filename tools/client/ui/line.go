@@ -20,16 +20,22 @@ type SoftWrapOptions struct {
 	WideCharScale float64
 }
 
+type MultiLineHelper interface {
+	EnableMultiLineOnce()
+	ExitMultiLineHint() string
+}
+
 type ChatLineHandler struct {
 	client ai.Client
 	swo    SoftWrapOptions
+	remote MultiLineHelper
 
 	initialized bool
 	sessionID   int
 }
 
-func NewChatLineHandler(client ai.Client, softWrapOptions SoftWrapOptions) *ChatLineHandler {
-	return &ChatLineHandler{client: client, swo: softWrapOptions}
+func NewChatLineHandler(client ai.Client, softWrapOptions SoftWrapOptions, remote MultiLineHelper) *ChatLineHandler {
+	return &ChatLineHandler{client: client, swo: softWrapOptions, remote: remote}
 }
 
 const initLinePrefix = "init"
@@ -121,6 +127,11 @@ func (h *ChatLineHandler) HandleLine(line string) {
 		fmt.Println(version)
 		return
 	}
+	if line == ":ml" {
+		fmt.Println(h.remote.ExitMultiLineHint())
+		h.remote.EnableMultiLineOnce()
+		return
+	}
 
 	isInitLine, createSession, id := checkAndParseInitLine(line)
 	if !isInitLine && !h.initialized {
@@ -165,7 +176,11 @@ Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
 		return
 	}
 
-	words, err := h.client.Chat(h.sessionID, line)
+	h.HandleInput(line)
+}
+
+func (h *ChatLineHandler) HandleInput(content string) {
+	words, err := h.client.Chat(h.sessionID, content)
 	if err != nil {
 		log.Fatal(err)
 	}
