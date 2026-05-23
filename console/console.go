@@ -97,7 +97,7 @@ type MultiLineChecker interface {
 }
 
 type Controller struct {
-	handler LineHandler
+	handler InputHandler
 	opts    Options
 	remote  MultiLineChecker
 
@@ -105,7 +105,7 @@ type Controller struct {
 }
 
 // NewController creates *[Controller], use [NewDefaultOptions] to provide a workable opts or make it yourself.
-func NewController(handler LineHandler, opts Options, remote MultiLineChecker) *Controller {
+func NewController(handler InputHandler, opts Options, remote MultiLineChecker) *Controller {
 	return &Controller{
 		handler:   handler,
 		opts:      opts,
@@ -126,9 +126,8 @@ func NewDefaultOptions() Options {
 	}
 }
 
-type LineHandler interface {
-	HandleLine(line string)
-	HandleInput(content string) // content are lines, so I could keep the name LineHandler.
+type InputHandler interface {
+	HandleInput(content string)
 }
 
 func (c *Controller) Run() {
@@ -163,7 +162,7 @@ func (c *Controller) Run() {
 		}
 
 		if !c.remote.MultiLine() {
-			c.handler.HandleLine(line)
+			c.handler.HandleInput(line)
 			continue
 		}
 		if c.remote.OnMultiLineEndExit(line) {

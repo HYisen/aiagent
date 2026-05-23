@@ -15,7 +15,7 @@ var multiLineSymbol = flag.String("multiLineSymbol", "EOF", "multi line end symb
 func main() {
 	flag.Parse()
 	remote := console.NewMultiLineRemote(*multiLineSymbol)
-	handler := ui.NewChatLineHandler(ai.NewClient(*endpoint, ui.Login), ui.SoftWrapOptions{
+	handler := ui.NewHandler(ai.NewClient(*endpoint, ui.Login), ui.SoftWrapOptions{
 		TerminalWidth: *softWrapWidth,
 		WideCharScale: *wideCharScale,
 	}, remote)

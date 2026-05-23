@@ -25,7 +25,7 @@ type MultiLineHelper interface {
 	ExitMultiLineHint() string
 }
 
-type ChatLineHandler struct {
+type Handler struct {
 	client ai.Client
 	swo    SoftWrapOptions
 	remote MultiLineHelper
@@ -34,8 +34,8 @@ type ChatLineHandler struct {
 	sessionID   int
 }
 
-func NewChatLineHandler(client ai.Client, softWrapOptions SoftWrapOptions, remote MultiLineHelper) *ChatLineHandler {
-	return &ChatLineHandler{client: client, swo: softWrapOptions, remote: remote}
+func NewHandler(client ai.Client, softWrapOptions SoftWrapOptions, remote MultiLineHelper) *Handler {
+	return &Handler{client: client, swo: softWrapOptions, remote: remote}
 }
 
 const initLinePrefix = "init"
@@ -56,7 +56,7 @@ func checkAndParseInitLine(s string) (isInitLine bool, createSession bool, oldSe
 }
 
 func tryLoginOnceIfForbidden[ReturnType any](
-	h *ChatLineHandler,
+	h *Handler,
 	fn func(c ai.Client) (ReturnType, error),
 ) (ReturnType, error) {
 	ret, errOne := fn(h.client)
@@ -101,8 +101,8 @@ func PrintSessionTable[T ai.Session](sessions []T) {
 	}
 }
 
-var commandLineToActions = map[string]func(h *ChatLineHandler){
-	":ls": func(h *ChatLineHandler) {
+var commandLineToActions = map[string]func(h *Handler){
+	":ls": func(h *Handler) {
 		sessions, err := tryLoginOnceIfForbidden(h, func(c ai.Client) ([]ai.Session, error) {
 			return c.ListSessions()
 		})
@@ -115,7 +115,7 @@ var commandLineToActions = map[string]func(h *ChatLineHandler){
 		})
 		PrintSessionTable(sessions)
 	},
-	":version": func(h *ChatLineHandler) {
+	":version": func(h *Handler) {
 		version, err := tryLoginOnceIfForbidden(h, func(c ai.Client) (*debug.BuildInfo, error) {
 			return c.GetVersion()
 		})
@@ -125,13 +125,13 @@ var commandLineToActions = map[string]func(h *ChatLineHandler){
 		}
 		fmt.Println(version)
 	},
-	":ml": func(h *ChatLineHandler) {
+	":ml": func(h *Handler) {
 		fmt.Println(h.remote.ExitMultiLineHint())
 		h.remote.EnableMultiLineOnce()
 	},
 }
 
-func (h *ChatLineHandler) HandleLine(line string) {
+func (h *Handler) HandleLine(line string) {
 	for cmd, action := range commandLineToActions {
 		if line == cmd {
 			action(h)
@@ -185,7 +185,7 @@ Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
 	h.HandleInput(line)
 }
 
-func (h *ChatLineHandler) HandleInput(content string) {
+func (h *Handler) HandleInput(content string) {
 	words, err := h.client.Chat(h.sessionID, content)
 	if err != nil {
 		log.Fatal(err)

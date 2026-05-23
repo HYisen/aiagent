@@ -110,20 +110,11 @@ type REPLLineHandler struct {
 	client  *openai.Client
 }
 
-func (h *REPLLineHandler) HandleInput(content string) {
-	h.HandleLine(content)
-	// Previous code shall work. Remove panic if it's called in reality.
-	// This func is implemented because it's simple, not designed to be called.
-	// It indicates interface [console.LineHandler] is somehow corrupted.
-	// I shall refactor if it gets worse.
-	panic("unreachable")
-}
-
 func NewREPLLineHandler(client *openai.Client) *REPLLineHandler {
 	return &REPLLineHandler{client: client}
 }
 
-func (h *REPLLineHandler) HandleLine(line string) {
+func (h *REPLLineHandler) HandleInput(line string) {
 	h.history = append(h.history, openai.NewUserMessage(line))
 	fmt.Printf("sending with history size %d\n", len(h.history))
 	cc, err := h.client.OneShotStream(context.Background(), openai.NewRequest(

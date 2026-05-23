@@ -14,7 +14,7 @@ For example, `console.MultiLineRemote` satisfies both:
 
 - `console.MultiLineChecker` — the subset needed by `console.Controller`
 - `aiagent/tools/client/ui.MultiLineHelper` — the subset needed by
-  `ChatLineHandler`
+  `ui.Handler`
 
 This is idiomatic Go. Do not flag it as duplication or inconsistency.
 Consolidating them into one shared interface would violate interface
