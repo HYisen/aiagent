@@ -101,8 +101,8 @@ func PrintSessionTable[T ai.Session](sessions []T) {
 	}
 }
 
-func (h *ChatLineHandler) HandleLine(line string) {
-	if line == ":ls" {
+var commandLineToActions = map[string]func(h *ChatLineHandler){
+	":ls": func(h *ChatLineHandler) {
 		sessions, err := tryLoginOnceIfForbidden(h, func(c ai.Client) ([]ai.Session, error) {
 			return c.ListSessions()
 		})
@@ -114,9 +114,8 @@ func (h *ChatLineHandler) HandleLine(line string) {
 			return int(lhs.SessionCommon().UpdateTimeEpochMilli - rhs.SessionCommon().UpdateTimeEpochMilli)
 		})
 		PrintSessionTable(sessions)
-		return
-	}
-	if line == ":version" {
+	},
+	":version": func(h *ChatLineHandler) {
 		version, err := tryLoginOnceIfForbidden(h, func(c ai.Client) (*debug.BuildInfo, error) {
 			return c.GetVersion()
 		})
@@ -125,12 +124,19 @@ func (h *ChatLineHandler) HandleLine(line string) {
 			return
 		}
 		fmt.Println(version)
-		return
-	}
-	if line == ":ml" {
+	},
+	":ml": func(h *ChatLineHandler) {
 		fmt.Println(h.remote.ExitMultiLineHint())
 		h.remote.EnableMultiLineOnce()
-		return
+	},
+}
+
+func (h *ChatLineHandler) HandleLine(line string) {
+	for cmd, action := range commandLineToActions {
+		if line == cmd {
+			action(h)
+			return
+		}
 	}
 
 	isInitLine, createSession, id := checkAndParseInitLine(line)
