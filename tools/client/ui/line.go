@@ -131,15 +131,15 @@ var commandLineToActions = map[string]func(h *Handler){
 	},
 }
 
-func (h *Handler) HandleLine(line string) {
+func (h *Handler) HandleInput(content string) {
 	for cmd, action := range commandLineToActions {
-		if line == cmd {
+		if content == cmd {
 			action(h)
 			return
 		}
 	}
 
-	isInitLine, createSession, id := checkAndParseInitLine(line)
+	isInitLine, createSession, id := checkAndParseInitLine(content)
 	if !isInitLine && !h.initialized {
 		fmt.Printf(`Type "%s" to initialize.
 Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
@@ -182,10 +182,6 @@ Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
 		return
 	}
 
-	h.HandleInput(line)
-}
-
-func (h *Handler) HandleInput(content string) {
 	words, err := h.client.Chat(h.sessionID, content)
 	if err != nil {
 		log.Fatal(err)
