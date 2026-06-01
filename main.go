@@ -114,7 +114,7 @@ func NewREPLLineHandler(client *openai.Client) *REPLLineHandler {
 	return &REPLLineHandler{client: client}
 }
 
-func (h *REPLLineHandler) HandleLine(line string) {
+func (h *REPLLineHandler) HandleInput(line string) {
 	h.history = append(h.history, openai.NewUserMessage(line))
 	fmt.Printf("sending with history size %d\n", len(h.history))
 	cc, err := h.client.OneShotStream(context.Background(), openai.NewRequest(
@@ -136,7 +136,7 @@ func (h *REPLLineHandler) HandleLine(line string) {
 func repl() {
 	client := openai.New("https://api.deepseek.com", *DeepSeekAPIKey)
 	handler := NewREPLLineHandler(client)
-	controller := console.NewController(handler, console.NewDefaultOptions())
+	controller := console.NewController(handler, console.NewDefaultOptions(), &console.NotMultiLineChecker{})
 	controller.Run()
 }
 

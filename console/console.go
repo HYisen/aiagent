@@ -6,9 +6,11 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -87,14 +89,29 @@ func COTEndMessage() string {
 	return "\n\n" + separation + " CoT END " + separation + "\n\n"
 }
 
+// MultiLineChecker limits [console.MultiLineRemote] to use.
+// See [console.MultiLineRemote] docs for methods' definition.
+type MultiLineChecker interface {
+	OnMultiLineEndExit(line string) bool
+	MultiLine() bool
+}
+
 type Controller struct {
-	handler LineHandler
+	handler InputHandler
 	opts    Options
+	remote  MultiLineChecker
+
+	muRunning *sync.Mutex // Guard [Controller.Run] is not concurrent.
 }
 
 // NewController creates *[Controller], use [NewDefaultOptions] to provide a workable opts or make it yourself.
-func NewController(handler LineHandler, opts Options) *Controller {
-	return &Controller{handler: handler, opts: opts}
+func NewController(handler InputHandler, opts Options, remote MultiLineChecker) *Controller {
+	return &Controller{
+		handler:   handler,
+		opts:      opts,
+		remote:    remote,
+		muRunning: &sync.Mutex{},
+	}
 }
 
 type Options struct {
@@ -109,23 +126,50 @@ func NewDefaultOptions() Options {
 	}
 }
 
-type LineHandler interface {
-	HandleLine(line string)
+type InputHandler interface {
+	HandleInput(content string)
 }
 
-type HandleLineFunc func(line string)
-
 func (c *Controller) Run() {
+	if !c.muRunning.TryLock() {
+		panic("concurrent on Controller.Run is not supported yet")
+	}
+	defer func() {
+		c.muRunning.Unlock()
+	}()
+
+	// Another approach I have tried but denied is making buf receiver's fields.
+	// So that we can pull procedure to receiver's private method easier.
+	// But then muRunning would have to be abused to protect those fields.
+	// Keeping them as local variables makes it much easier to declare thread-safe.
+	var buf []string
+
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Printf("hint: input %s to escape\n", c.opts.EscapeLine)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == c.opts.EscapeLine {
+			// If there is an exact c.opts.EscapeLine in multi-line input.
+			// I hold further improvement until real user complain comes out.
+			// Maybe user would even like current design as a stable exit.
+			if len(buf) > 0 {
+				slog.Warn("unhandled multi-line", "buf", buf)
+			}
 			break
 		}
 		if c.opts.EchoInput {
 			log.Printf("read line : %s\n", line)
 		}
-		c.handler.HandleLine(line)
+
+		if !c.remote.MultiLine() {
+			c.handler.HandleInput(line)
+			continue
+		}
+		if c.remote.OnMultiLineEndExit(line) {
+			c.handler.HandleInput(strings.Join(buf, "\n"))
+			buf = nil
+			continue
+		}
+		buf = append(buf, line)
 	}
 }

@@ -27,7 +27,7 @@ func FetchAndParseJSON[ResponseType any](request *http.Request) (ResponseType, e
 		return ret, fmt.Errorf("%w: %s", ErrForbidden, string(data))
 	}
 	if resp.StatusCode != http.StatusOK {
-		return ret, fmt.Errorf("unexpected response status code %d: %s", resp.StatusCode, string(data))
+		return ret, fmt.Errorf("unexpected response status %v: %s", resp.Status, string(data))
 	}
 
 	if err := json.Unmarshal(data, &ret); err != nil {

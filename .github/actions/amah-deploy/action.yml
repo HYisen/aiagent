@@ -34,7 +34,7 @@ runs:
   using: composite
   steps:
     - name: Stop
-      uses: fjogeleit/http-request-action@v1.16.4
+      uses: fjogeleit/http-request-action@v2.0.0
       with:
         url: "${{ inputs.endpoint }}/v1/applications/${{ inputs.appid }}/instances"
         method: DELETE
@@ -42,7 +42,7 @@ runs:
         ignoreStatusCodes: '404' # ignore if stopped
         timeout: 10000
     - name: Deploy
-      uses: fjogeleit/http-request-action@v1.16.4
+      uses: fjogeleit/http-request-action@v2.0.0
       with:
         url: "${{ inputs.endpoint }}/v1/applications/${{ inputs.appid }}"
         method: PUT
@@ -56,7 +56,7 @@ runs:
           }
         timeout: 60000
     - name: Start
-      uses: fjogeleit/http-request-action@v1.16.4
+      uses: fjogeleit/http-request-action@v2.0.0
       with:
         url: "${{ inputs.endpoint }}/v1/applications/${{ inputs.appid }}/instances"
         method: PUT

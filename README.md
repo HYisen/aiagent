@@ -4,6 +4,19 @@
 
 A server side app that provides HTTP interface to access LLM service for me.
 
+## AIGC
+
+Owner controls quality. Author takes responsibilities on their commits.
+
+I encourage human developers to credit AI's contribution.
+
+Some files are created for AI and by AI, I decide to let them go without my interference.
+
+They are
+
+- AGENTS.md
+- docs/go-conventions.md
+
 ## Usage
 
 ```bash

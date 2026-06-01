@@ -1,0 +1,55 @@
+name: attach-release
+
+on:
+  release:
+    types: [ created ]
+
+env:
+  BINARY_NAME: client # keep sync with that in client.yml
+  ARTIFACT_NAME: clients.tar.gz # a.k.a. ZIPPED_NAME in client.yml
+
+jobs:
+  one:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Find run-id
+        # It's not thread-safe. If the latest successful is wrong, then we miss the artifact.
+        # But luckily, as for client, the latter is almost always better, thus it is acceptable.
+        run: |
+          id=$(gh run list --workflow $WORKFLOW_NAME --limit 1 --status success --json databaseId --jq ".[0].databaseId")
+          echo "source_run_id=$id" >> "$GITHUB_ENV"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          WORKFLOW_NAME: client
+      - name: Download
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          github-token: ${{ secrets.GITHUB_TOKEN }} # required when downloading artifacts from a different workflow run
+          run-id: ${{ env.source_run_id }}
+          skip-decompress: true
+      - name: Repack and Add Attachments to Release
+        # platform independent & preserve execute in UNIX
+        run: |
+          mkdir -p $TMP_DIR
+          tar xvf $ARTIFACT_NAME --directory $TMP_DIR
+          cd $TMP_DIR
+          for old in *
+          do
+            if [[ $old =~ .*\.exe$ ]]; then
+              neo=$old
+              cp "$old" ../"$neo"
+            else
+              neo=${old}.tar.gz
+              tar czvf ../"$neo" "$old"
+            fi
+            gh release upload "$TAG" ../"$neo"
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref }}
+          TMP_DIR: out

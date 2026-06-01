@@ -51,7 +51,7 @@ func (c *Client) chat(ctx context.Context, request RequestWhole) (body io.ReadCl
 		if e != nil {
 			payload = []byte(fmt.Sprintf("read payload error: %s", e.Error()))
 		}
-		return nil, fmt.Errorf("unexpected status code %d body %s", resp.StatusCode, string(payload))
+		return nil, fmt.Errorf("unexpected status %v body %s", resp.Status, string(payload))
 	}
 	return resp.Body, nil
 }

@@ -20,16 +20,22 @@ type SoftWrapOptions struct {
 	WideCharScale float64
 }
 
-type ChatLineHandler struct {
+type MultiLineHelper interface {
+	EnableMultiLineOnce()
+	ExitMultiLineHint() string
+}
+
+type Handler struct {
 	client ai.Client
 	swo    SoftWrapOptions
+	remote MultiLineHelper
 
 	initialized bool
 	sessionID   int
 }
 
-func NewChatLineHandler(client ai.Client, softWrapOptions SoftWrapOptions) *ChatLineHandler {
-	return &ChatLineHandler{client: client, swo: softWrapOptions}
+func NewHandler(client ai.Client, softWrapOptions SoftWrapOptions, remote MultiLineHelper) *Handler {
+	return &Handler{client: client, swo: softWrapOptions, remote: remote}
 }
 
 const initLinePrefix = "init"
@@ -50,7 +56,7 @@ func checkAndParseInitLine(s string) (isInitLine bool, createSession bool, oldSe
 }
 
 func tryLoginOnceIfForbidden[ReturnType any](
-	h *ChatLineHandler,
+	h *Handler,
 	fn func(c ai.Client) (ReturnType, error),
 ) (ReturnType, error) {
 	ret, errOne := fn(h.client)
@@ -95,8 +101,8 @@ func PrintSessionTable[T ai.Session](sessions []T) {
 	}
 }
 
-func (h *ChatLineHandler) HandleLine(line string) {
-	if line == ":ls" {
+var commandLineToActions = map[string]func(h *Handler){
+	":ls": func(h *Handler) {
 		sessions, err := tryLoginOnceIfForbidden(h, func(c ai.Client) ([]ai.Session, error) {
 			return c.ListSessions()
 		})
@@ -108,9 +114,8 @@ func (h *ChatLineHandler) HandleLine(line string) {
 			return int(lhs.SessionCommon().UpdateTimeEpochMilli - rhs.SessionCommon().UpdateTimeEpochMilli)
 		})
 		PrintSessionTable(sessions)
-		return
-	}
-	if line == ":version" {
+	},
+	":version": func(h *Handler) {
 		version, err := tryLoginOnceIfForbidden(h, func(c ai.Client) (*debug.BuildInfo, error) {
 			return c.GetVersion()
 		})
@@ -119,10 +124,22 @@ func (h *ChatLineHandler) HandleLine(line string) {
 			return
 		}
 		fmt.Println(version)
-		return
+	},
+	":ml": func(h *Handler) {
+		fmt.Println(h.remote.ExitMultiLineHint())
+		h.remote.EnableMultiLineOnce()
+	},
+}
+
+func (h *Handler) HandleInput(content string) {
+	for cmd, action := range commandLineToActions {
+		if content == cmd {
+			action(h)
+			return
+		}
 	}
 
-	isInitLine, createSession, id := checkAndParseInitLine(line)
+	isInitLine, createSession, id := checkAndParseInitLine(content)
 	if !isInitLine && !h.initialized {
 		fmt.Printf(`Type "%s" to initialize.
 Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
@@ -165,7 +182,7 @@ Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
 		return
 	}
 
-	words, err := h.client.Chat(h.sessionID, line)
+	words, err := h.client.Chat(h.sessionID, content)
 	if err != nil {
 		log.Fatal(err)
 	}

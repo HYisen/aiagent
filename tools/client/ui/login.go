@@ -4,15 +4,19 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"golang.org/x/term"
 	"io"
 	"log/slog"
 	"os"
 	"time"
+
+	"golang.org/x/term"
 )
 
 func loginTerminal() (username string, password string, err error) {
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		return "", "", err
+	}
 	defer func() {
 		err = errors.Join(err, term.Restore(int(os.Stdin.Fd()), oldState))
 	}()
@@ -59,7 +63,6 @@ func Login() (username string, password string, err error) {
 	if !isTerminal() {
 		slog.Warn("Not terminal, switch to fallback password echo mode.")
 		return loginFallback()
-	} else {
-		return loginTerminal()
 	}
+	return loginTerminal()
 }
