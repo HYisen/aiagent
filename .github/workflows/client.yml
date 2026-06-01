@@ -48,7 +48,6 @@ jobs:
         run: tar -czvf $ZIPPED_NAME -C $OUTPUT_PATH .
 
       - name: Archive
-        id: archive
         uses: actions/upload-artifact@v7
         with:
           path: ${{ env.ZIPPED_NAME }}
