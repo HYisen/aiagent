@@ -51,5 +51,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          TAG: ${{ github.ref }}
+          TAG: ${{ github.ref_name }}
           TMP_DIR: out
