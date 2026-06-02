@@ -11,6 +11,10 @@ import (
 	"gorm.io/gorm"
 )
 
+// V1Service provides abilities without scoped_id constraint,
+// which makes it ideal for administrator actions, but not for normal users.
+// The V1 name does come from its earlier adoption,
+// but do not mean to be deprecated now nor in the future.
 type V1Service struct {
 	sessionRepository *session.Repository
 }
