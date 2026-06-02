@@ -70,18 +70,19 @@ func DefaultSessionName() string {
 // Weak indicates it's a poorly generated name by timestamp,
 // which have the potential to be improved by the digest mechanism.
 func (s *Session) WeakName() bool {
-	return SessionNameGeneratedFromTime(s.Name)
+	_, generatedFromTime := DigestSessionName(s.Name)
+	return generatedFromTime
 }
 
-func SessionNameGeneratedFromTime(name string) bool {
+func DigestSessionName(name string) (t time.Time, generatedFromTime bool) {
 	// The implementation is a reverse of [time.Time.String].
 	index := strings.LastIndex(name, " m=")
 	if index != -1 {
 		name = name[:index]
 	}
 	// That layout used in [time.Time.String] is not exposed, so we forked a copy here.
-	_, err := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", name)
-	return err == nil
+	t, err := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", name)
+	return t, err == nil
 }
 
 func (s *Session) History() []openai.Message {
