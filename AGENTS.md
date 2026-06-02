@@ -99,3 +99,11 @@ verification. User IDs come from the URL path (`/v2/users/{userID}/sessions`).
 
 - Read `docs/go-conventions.md` before reviewing Go code — it covers idioms like consumer-defined interfaces and `panic`
   for invariants.
+
+## Reviewing
+
+Before flagging a function's behavior as a risk, trace its full call chain. A function may look problematic in isolation
+but be harmless given the guarantees its callers already enforce. For example, `DigestSessionName` has a "false
+positive"
+risk if you read it alone, but every caller only feeds it sessions that are already known to be empty — so a misparse
+is harmless. Always verify the data flow from source to sink before concluding something is a bug.
