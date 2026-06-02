@@ -68,10 +68,13 @@ func DefaultSessionName() string {
 
 // WeakName returns whether the [Session.Name] is weak.
 // Weak indicates it's a poorly generated name by timestamp,
-// which should be improved by the digest mechanism.
+// which have the potential to be improved by the digest mechanism.
 func (s *Session) WeakName() bool {
+	return SessionNameGeneratedFromTime(s.Name)
+}
+
+func SessionNameGeneratedFromTime(name string) bool {
 	// The implementation is a reverse of [time.Time.String].
-	name := s.Name
 	index := strings.LastIndex(name, " m=")
 	if index != -1 {
 		name = name[:index]
