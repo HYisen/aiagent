@@ -11,6 +11,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// V2Service provides abilities that similar to [V1Service], but with scoped_id constraint.
+// It's designed for normal users. Newer features may come to V2 first.
 type V2Service struct {
 	sessionRepository *session.Repository
 }

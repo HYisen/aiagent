@@ -215,3 +215,37 @@ func (r *Repository) FindWithChatsDigestByUserID(
 
 	return extendSessionWithChatsDigest(sessions, digest(chats)), nil
 }
+
+func (r *Repository) FindEmptySessionIDToName(ctx context.Context) (sessionIDToName map[int]string, err error) {
+	var nonEmptySessionIDs []int
+	if err := r.q.Chat.WithContext(ctx).
+		Distinct(r.q.Chat.SessionID).
+		Pluck(r.q.Chat.SessionID, &nonEmptySessionIDs); err != nil {
+		return nil, err
+	}
+
+	sessions, err := r.q.Session.WithContext(ctx).
+		Where(r.q.Session.ID.NotIn(nonEmptySessionIDs...)).
+		Select(r.q.Session.ID, r.q.Session.Name).Find()
+	if err != nil {
+		return nil, err
+	}
+	return extractSessionIDToName(sessions), nil
+}
+
+func extractSessionIDToName(sessions []*model.Session) (sessionIDToName map[int]string) {
+	sessionIDToName = make(map[int]string)
+	for _, session := range sessions {
+		// session_id is PK, it's a bijection, can't override or lost item.
+		sessionIDToName[session.ID] = session.Name
+	}
+	return sessionIDToName
+}
+
+func (r *Repository) DeleteByIDs(ctx context.Context, ids ...int) error {
+	rowsAffected, err := gorm.G[model.Session](r.db).Where(generated.Session.ID.In(ids...)).Delete(ctx)
+	if err == nil {
+		slog.Info("deleted sessions", "count", rowsAffected, "ids", ids)
+	}
+	return err
+}

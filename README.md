@@ -94,3 +94,7 @@ asserting the request access endpoints such as /users/{userID}/sessions have the
 
 Such a mechanism is simplest in the current project.
 And there is an auth in amah, I don't want to copy and paste that module.
+
+### GORM GEN vs CLI
+
+See `docs/decisions/gorm.md`.

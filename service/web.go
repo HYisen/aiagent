@@ -7,6 +7,7 @@ import (
 	sc "aiagent/service/chat"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"reflect"
 	"runtime/debug"
@@ -209,6 +210,19 @@ func New(
 			return ret.buildInfo, nil
 		})
 
+	v1CleanEmpty := wf.NewClosureHandler(
+		wf.Exact(http.MethodPost, "/v1/clean-empty"),
+		func(data []byte, path string) (req any, err error) {
+			return string(data), nil
+		},
+		func(ctx context.Context, s any) (rsp any, codedError *wf.CodedError) {
+			slog.Info("triggered clean empty session", "msg", s.(string))
+			return nil, ret.v1.CleanEmptyOldSession(ctx)
+		},
+		wf.FormatEmpty,
+		http.DetectContentType(nil),
+	)
+
 	ret.web = wf.NewWeb(
 		false,
 		v1PostSession,
@@ -222,6 +236,7 @@ func New(
 		v2PostSessionChat,
 		v2PostSessionChatStream,
 		v1GetBuildInfo,
+		v1CleanEmpty,
 	)
 	return ret
 }
