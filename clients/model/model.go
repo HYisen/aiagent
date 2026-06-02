@@ -13,14 +13,6 @@ import (
 	"time"
 )
 
-type Session struct {
-	ID       int `json:"-"`
-	Name     string
-	UserID   int
-	ScopedID int
-	Chats    []*Chat `gorm:"foreignkey:SessionID"`
-}
-
 type SessionWithChatsDigest struct {
 	Session
 	ChatsDigest

@@ -15,3 +15,11 @@ type SessionChatQuery[T any] interface {
 	// ORDER BY chats.session_id;
 	FindChatPartByUserID(userID int) ([]ChatPart, error)
 }
+
+type Session struct {
+	ID       int `json:"-"`
+	Name     string
+	UserID   int
+	ScopedID int
+	Chats    []*Chat `gorm:"foreignkey:SessionID"`
+}

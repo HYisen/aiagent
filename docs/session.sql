@@ -25,3 +25,8 @@ FROM chats
          LEFT JOIN sessions ON chats.session_id = sessions.id
 WHERE user_id = 1000
 ORDER BY chats.session_id;
+
+SELECT sessions.id, sessions.name, COUNT(chats.id) AS count
+FROM sessions
+         LEFT JOIN chats ON sessions.id = chats.session_id
+GROUP BY sessions.id;
