@@ -69,6 +69,14 @@ func (s *V1Service) CleanEmptyOldSession(ctx context.Context) *wf.CodedError {
 		return wf.NewCodedError(http.StatusInternalServerError, err)
 	}
 	ids := filterOldAndMapSessionIDs(idToName)
+	// Yes, TOCTOU. But I have made up reasons.
+	// 1. The chance of the race is rare. Have not been observed yet.
+	// 2. v1CleanEmpty is designed for admin, who could keep users away during v1CleanEmpty as maintenance stage.
+	// 3. Even if it happened, lost the first input is acceptable.
+	// 4. Actually, it won't happen, Chat FK constraint would prevent Session Delete. And failed here is acceptable.
+	// 5. To wrap into a transaction, I have to make filter logic injected or located to Repository, I hesitate it.
+	// 6. v1CleanEmpty is a quick answer on how to deal with exists empty Sessions. To make it perfect, I prefer to
+	//    make Session init and first Chat into one transaction. It's better to prevent corruption rather than fix.
 	err = s.sessionRepository.DeleteByIDs(ctx, ids...)
 	if err != nil {
 		return wf.NewCodedError(http.StatusInternalServerError, err)
