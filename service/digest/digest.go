@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/hyisen/wf"
+	"gorm.io/gorm"
 )
 
 type Service struct {
@@ -24,8 +25,11 @@ func NewService(client *openai.Client, sessionRepository *session.Repository) *S
 
 func (s *Service) GenerateTitle(ctx context.Context, sessionID int) *wf.CodedError {
 	ses, err := s.sessionRepository.FindWithChats(ctx, sessionID)
-	if err != nil {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return wf.NewCodedErrorf(http.StatusNotFound, "no session on id %d to digest", sessionID)
+	}
+	if err != nil {
+		return wf.NewCodedError(http.StatusInternalServerError, err)
 	}
 
 	safeWord := "I_DO_NOT_ANSWER_IT"
