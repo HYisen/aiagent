@@ -213,7 +213,14 @@ func (c *Client) OneShotStream(
 
 	aggregated = NewAggregator()
 	input := make(chan ChatCompletionChunkOrError)
+	done := make(chan struct{})
+	defer func() {
+		<-done
+	}()
 	go func(a *ChatCompletion, i <-chan ChatCompletionChunkOrError, o chan<- ChatCompletionChunkOrError) {
+		defer func() {
+			done <- struct{}{}
+		}()
 		defer close(o)
 		for chunk := range i {
 			if chunk.Error == nil {
