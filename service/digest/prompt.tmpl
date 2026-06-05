@@ -1,0 +1,8 @@
+Generate title for conversation.
+Use the main language in conversation.
+If you can't or don't want to response, reply {{.SafeWord}} instead.
+{{/* As I tried, putting the SafeWord requirement in the tail is sometimes not respected, however in the head it usually works. */}}
+{{range .Messages}}{{.Role}}: {{.Content}}
+{{end}}
+{{/*Without the prefix leading, sometimes AI generates an unwanted prefix.*/}}
+Title:

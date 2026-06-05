@@ -5,6 +5,7 @@ import (
 	"aiagent/clients/openai"
 	"aiagent/clients/session"
 	sc "aiagent/service/chat"
+	"aiagent/service/digest"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -17,11 +18,12 @@ import (
 )
 
 type Service struct {
-	v1          *V1Service
-	v2          *V2Service
-	chatService *sc.Service
-	buildInfo   *debug.BuildInfo
-	web         *wf.Web
+	v1            *V1Service
+	v2            *V2Service
+	chatService   *sc.Service
+	digestService *digest.Service
+	buildInfo     *debug.BuildInfo
+	web           *wf.Web
 }
 
 func (s *Service) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -42,11 +44,12 @@ func New(
 	buildInfo *debug.BuildInfo,
 ) *Service {
 	ret := &Service{
-		web:         nil,
-		v1:          NewV1Service(sessionRepository),
-		v2:          NewV2Service(sessionRepository),
-		chatService: sc.NewService(client, chatRepository, sessionRepository),
-		buildInfo:   buildInfo,
+		web:           nil,
+		v1:            NewV1Service(sessionRepository),
+		v2:            NewV2Service(sessionRepository),
+		chatService:   sc.NewService(client, chatRepository, sessionRepository),
+		digestService: digest.NewService(client, sessionRepository),
+		buildInfo:     buildInfo,
 	}
 
 	v1PostSession := wf.NewJSONHandler(
@@ -223,6 +226,17 @@ func New(
 		http.DetectContentType(nil),
 	)
 
+	v1PostSessionNameGeneratePathSuffix := "/name/generate"
+	v1PostSessionNameGenerate := wf.NewClosureHandler(
+		wf.ResourceWithID(http.MethodPost, "/v1/sessions/", v1PostSessionNameGeneratePathSuffix),
+		wf.PathIDParser(v1PostSessionNameGeneratePathSuffix),
+		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
+			return nil, ret.digestService.GenerateTitle(ctx, req.(int))
+		},
+		wf.FormatEmpty,
+		http.DetectContentType(nil),
+	)
+
 	ret.web = wf.NewWeb(
 		false,
 		v1PostSession,
@@ -237,6 +251,7 @@ func New(
 		v2PostSessionChatStream,
 		v1GetBuildInfo,
 		v1CleanEmpty,
+		v1PostSessionNameGenerate,
 	)
 	return ret
 }

@@ -249,3 +249,11 @@ func (r *Repository) DeleteByIDs(ctx context.Context, ids ...int) error {
 	}
 	return err
 }
+
+func (r *Repository) UpdateName(ctx context.Context, id int, name string) error {
+	_, err := gorm.G[model.Session](r.db).
+		Where(generated.Session.ID.Eq(id)).
+		Set(generated.Session.Name.Set(name)).
+		Update(ctx)
+	return err
+}
