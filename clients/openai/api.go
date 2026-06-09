@@ -5,12 +5,12 @@ import (
 	"fmt"
 )
 
+// ChatModel is an enum class to represent a Large Language Model.
+//
+// See [ pricer.PriceOrDefault ] to find what obstacles making Price an enum class ability.
+// Developers have tried that for 2 times, but keeps finding it better not to do so.
 type ChatModel string // it's openai.ChatModel
 
-// Define enums for better understanding over name, not supposed to be all used
-// ref https://api-docs.deepseek.com/quick_start/pricing
-//
-//goland:noinspection GoUnusedConst
 const (
 	ChatModelDeepSeekV4Flash ChatModel = "deepseek-v4-flash"
 	ChatModelDeepSeekV4Pro   ChatModel = "deepseek-v4-pro"
