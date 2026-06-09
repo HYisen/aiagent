@@ -8,6 +8,10 @@ func Run[InputType any, OutputType any](
 	handler func(ctx context.Context, input InputType) (OutputType, error),
 	input []InputType,
 ) ([]OutputType, error) {
+	if len(input) == 0 {
+		return nil, nil
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	in := make(chan InputType)
 	out := make(chan result[OutputType])
