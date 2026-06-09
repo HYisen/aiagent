@@ -127,6 +127,7 @@ func (c *V2Client) GenerateSessionName(cmd string) (scopedIDToNeoName map[int]st
 	if err != nil {
 		return nil, err
 	}
+	c.AttachToken(req)
 
 	return FetchAndParseJSON[map[int]string](req)
 }
