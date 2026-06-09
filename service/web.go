@@ -237,6 +237,34 @@ func New(
 		http.DetectContentType(nil),
 	)
 
+	v2PostSessionNameGenerateMatcher, v2PostSessionNameGenerateSubParser := wf.ResourceWithIDs(
+		http.MethodPost,
+		[]string{"v2", "users", "", "sessions", "name", "generate"},
+	)
+	type UserIDAndCommand struct {
+		UserID  int
+		Command string
+	}
+	v2PostSessionNameGenerate := wf.NewClosureHandler(
+		v2PostSessionNameGenerateMatcher,
+		func(data []byte, path string) (req any, err error) {
+			userID, err := v2PostSessionNameGenerateSubParser(nil, path)
+			if err != nil {
+				return nil, err
+			}
+			return UserIDAndCommand{
+				UserID:  userID.(int),
+				Command: string(data),
+			}, nil
+		},
+		func(ctx context.Context, req any) (rsp any, codedError *wf.CodedError) {
+			r := req.(UserIDAndCommand)
+			return ret.digestService.GenerateSessionName(ctx, r.UserID, r.Command)
+		},
+		json.Marshal,
+		wf.JSONContentType,
+	)
+
 	ret.web = wf.NewWeb(
 		false,
 		v1PostSession,
@@ -252,6 +280,7 @@ func New(
 		v1GetBuildInfo,
 		v1CleanEmpty,
 		v1PostSessionNameGenerate,
+		v2PostSessionNameGenerate,
 	)
 	return ret
 }

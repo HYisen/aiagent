@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"runtime/debug"
+	"strings"
 )
 
 type TokenProvider interface {
@@ -118,5 +119,14 @@ func (c *V2Client) GetVersion() (version *debug.BuildInfo, err error) {
 }
 
 func (c *V2Client) GenerateSessionName(cmd string) (scopedIDToNeoName map[int]string, err error) {
-	panic("implement me")
+	req, err := http.NewRequest(
+		http.MethodPost,
+		fmt.Sprintf("%s/v2/sessions/name/generate", c.endpoint),
+		strings.NewReader(cmd),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return FetchAndParseJSON[map[int]string](req)
 }
