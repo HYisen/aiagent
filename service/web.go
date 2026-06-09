@@ -248,12 +248,12 @@ func New(
 	v2PostSessionNameGenerate := wf.NewClosureHandler(
 		v2PostSessionNameGenerateMatcher,
 		func(data []byte, path string) (req any, err error) {
-			userID, err := v2PostSessionNameGenerateSubParser(nil, path)
+			ids, err := v2PostSessionNameGenerateSubParser(nil, path)
 			if err != nil {
 				return nil, err
 			}
 			return UserIDAndCommand{
-				UserID:  userID.(int),
+				UserID:  ids.([]int)[0],
 				Command: string(data),
 			}, nil
 		},
