@@ -2,6 +2,9 @@ package runner
 
 import "context"
 
+// Run do handler on input at most nThreads.
+// nThreads is internally limited by len(input),
+// because you can't produce a baby in one month by getting nine women pregnant.
 func Run[InputType any, OutputType any](
 	ctx context.Context,
 	nThreads int,
@@ -11,6 +14,7 @@ func Run[InputType any, OutputType any](
 	if len(input) == 0 {
 		return nil, nil
 	}
+	nThreads = min(nThreads, len(input))
 
 	ctx, cancel := context.WithCancel(ctx)
 	in := make(chan InputType)
