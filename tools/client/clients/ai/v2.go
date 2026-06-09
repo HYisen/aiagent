@@ -121,7 +121,7 @@ func (c *V2Client) GetVersion() (version *debug.BuildInfo, err error) {
 func (c *V2Client) GenerateSessionName(cmd string) (scopedIDToNeoName map[int]string, err error) {
 	req, err := http.NewRequest(
 		http.MethodPost,
-		fmt.Sprintf("%s/v2/sessions/name/generate", c.endpoint),
+		fmt.Sprintf("%s/v2/users/%d/sessions/name/generate", c.endpoint, c.userID),
 		strings.NewReader(cmd),
 	)
 	if err != nil {
