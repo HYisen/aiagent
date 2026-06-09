@@ -60,7 +60,6 @@ func process[InputType any, OutputType any](
 		select {
 		case <-ctx.Done():
 			draining = true
-			return
 		case one, ok := <-inputCh:
 			if !ok {
 				return
