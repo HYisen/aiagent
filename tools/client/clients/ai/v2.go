@@ -116,3 +116,7 @@ func (c *V2Client) GetVersion() (version *debug.BuildInfo, err error) {
 	v, err := FetchAndParseJSON[debug.BuildInfo](req)
 	return &v, err
 }
+
+func (c *V2Client) GenerateSessionName(cmd string) (scopedIDToNeoName map[int]string, err error) {
+	panic("implement me")
+}

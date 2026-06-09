@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"runtime/debug"
+	"strconv"
 
 	"github.com/hyisen/wf"
 )
@@ -164,4 +165,19 @@ func (c *V1Client) GetVersion() (version *debug.BuildInfo, err error) {
 		return nil, err
 	}
 	return &v, nil
+}
+
+func (c *V1Client) GenerateSessionName(cmd string) (null map[int]string, err error) {
+	id, err := strconv.Atoi(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/v1/sessions/%d/name/generate", c.endpoint, id), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = Fetch(req)
+	return nil, err
 }

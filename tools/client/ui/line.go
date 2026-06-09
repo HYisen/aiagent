@@ -139,6 +139,22 @@ func (h *Handler) HandleInput(content string) {
 		}
 	}
 
+	cmd, ok := strings.CutPrefix(content, ":gn ")
+	if ok {
+		scopedIDToNeoNameNullable, err := h.client.GenerateSessionName(cmd)
+		if err != nil {
+			fmt.Printf("Generate Session [%s] Name failed: %v\n", cmd, err)
+			return
+		}
+		if scopedIDToNeoNameNullable != nil {
+			for scopedID, neoName := range scopedIDToNeoNameNullable {
+				fmt.Printf("%d => %s\n", scopedID, neoName)
+			}
+		}
+		fmt.Println("done")
+		return
+	}
+
 	isInitLine, createSession, id := checkAndParseInitLine(content)
 	if !isInitLine && !h.initialized {
 		fmt.Printf(`Type "%s" to initialize.
