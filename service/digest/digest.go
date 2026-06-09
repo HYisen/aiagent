@@ -144,7 +144,15 @@ func (s *Service) GenerateSessionName(
 	}
 
 	handler := func(ctx context.Context, input int) (*model.Session, error) {
-		return s.generateTitleAndSave(ctx, input)
+		// `s.generateTitleAndSave(ctx, input)` fails.
+		// DON'T ASK ME WHY I KNOW IT!
+		// (*wf.CodedError)(nil) != nil
+		// The cast up is mandatory.
+		neo, typedErr := s.generateTitleAndSave(ctx, input)
+		if typedErr != nil {
+			return nil, typedErr
+		}
+		return neo, nil
 	}
 	// Limited by timeout and upstream concurrency limit, whatever nThreads is,
 	// once the matched sessions goes too many, timeout inevitably comes true.
