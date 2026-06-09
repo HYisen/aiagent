@@ -115,7 +115,7 @@ func (c *V1Client) CreateSession() (id int, err error) {
 func newChatRequest(url string, content string) (*http.Request, error) {
 	payload := &chat.RequestPayload{
 		Content: content,
-		Model:   openai.ChatModelDeepSeekV4Pro,
+		Model:   string(openai.ChatModelDeepSeekV4Pro),
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {

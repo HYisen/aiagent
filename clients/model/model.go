@@ -135,7 +135,7 @@ func NewResult(cc *openai.ChatCompletion) *Result {
 		ChatID:               0, // leave null for FK fulfilling
 		ChatCompletionID:     cc.ID,
 		Created:              cc.Created,
-		Model:                cc.Model,
+		Model:                openai.ChatModel(cc.Model),
 		SystemFingerprint:    cc.SystemFingerprint,
 		FinishReason:         cc.Choices[0].FinishReason,
 		Role:                 cc.Choices[0].Message.Role,
@@ -157,7 +157,7 @@ func (r *Result) ChatCompletion() *openai.ChatCompletion {
 		ChatCompletionBase: openai.ChatCompletionBase{
 			ID:                r.ChatCompletionID,
 			Created:           r.Created,
-			Model:             r.Model,
+			Model:             string(r.Model),
 			SystemFingerprint: r.SystemFingerprint,
 		},
 		Choices: []openai.Choice{{

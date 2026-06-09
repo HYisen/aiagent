@@ -66,7 +66,7 @@ func (s *Service) ChatSimple(
 
 	chatCompletion, err := s.client.OneShot(ctx, openai.NewRequest(
 		append(ses.History(), openai.NewUserMessage(req.Content)),
-		req.Model,
+		openai.ChatModel(req.Model),
 		openai.ReasoningEffortHigh,
 	))
 	if err != nil {
@@ -150,7 +150,7 @@ func (s *Service) ChatStreamSimple(
 	// If we use ctx here, once the client has gone, our chat to upstream would be forced to end, which is not ideal.
 	up, err := s.client.OneShotStreamFast(detachedCtx, openai.NewRequest(
 		append(ses.History(), openai.NewUserMessage(req.Content)),
-		req.Model,
+		openai.ChatModel(req.Model),
 		openai.ReasoningEffortHigh,
 	))
 	if err != nil {

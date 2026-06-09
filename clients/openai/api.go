@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-type ChatModel = string // it's openai.ChatModel
+type ChatModel string // it's openai.ChatModel
 
 // Define enums for better understanding over name, not supposed to be all used
 // ref https://api-docs.deepseek.com/quick_start/pricing
@@ -15,6 +15,17 @@ const (
 	ChatModelDeepSeekV4Flash ChatModel = "deepseek-v4-flash"
 	ChatModelDeepSeekV4Pro   ChatModel = "deepseek-v4-pro"
 )
+
+func (cm ChatModel) ConcurrentLimit() int {
+	switch cm {
+	case ChatModelDeepSeekV4Flash:
+		return 2500
+	case ChatModelDeepSeekV4Pro:
+		return 500
+	default:
+		panic(fmt.Errorf("unknown chat model %s for ConcurrentLimit", cm))
+	}
+}
 
 type ReasoningEffort string
 

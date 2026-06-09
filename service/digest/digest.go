@@ -3,6 +3,7 @@ package digest
 import (
 	"aiagent/clients/openai"
 	"aiagent/clients/session"
+	"aiagent/helpers/pricer"
 	"context"
 	"errors"
 	"fmt"
@@ -40,7 +41,7 @@ func (s *Service) GenerateTitle(ctx context.Context, sessionID int) *wf.CodedErr
 
 	req := openai.NewRequest(
 		[]openai.Message{openai.NewUserMessage(prompt)},
-		openai.ChatModelDeepSeekV4Flash,
+		s.digestChatModel(),
 		openai.ReasoningEffortNone,
 	)
 	// `s.client.OneShotStream` behaves identical on rejected inputs,
@@ -57,7 +58,8 @@ func (s *Service) GenerateTitle(ctx context.Context, sessionID int) *wf.CodedErr
 		return ce
 	}
 
-	slog.Info("session name generated", "name", name, "prompt_length", len(prompt), "cost", cc.Usage)
+	price := pricer.PriceOrDefault(s.digestChatModel()).Cost(pricer.OpenAIUsage(cc.Usage))
+	slog.Info("session name generated", "name", name, "prompt_length", len(prompt), "price", price, "usage", cc.Usage)
 
 	if err := s.sessionRepository.UpdateName(ctx, sessionID, name); err != nil {
 		return wf.NewCodedError(http.StatusServiceUnavailable, err)
@@ -95,4 +97,8 @@ func extractNewName(cc *openai.ChatCompletion, safeWord string) (string, *wf.Cod
 	default:
 		panic(fmt.Errorf("unexpected finish reason %q", choice.FinishReason))
 	}
+}
+
+func (s *Service) digestChatModel() openai.ChatModel {
+	return openai.ChatModelDeepSeekV4Flash
 }

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"aiagent/console"
+	"aiagent/helpers/pricer"
 	"aiagent/tools/client/clients/ai"
 	"errors"
 	"fmt"
@@ -190,8 +191,8 @@ Type "%s 4" to continue session ID 4\n`, initLinePrefix, initLinePrefix)
 				PrintWithPrefix("  ", chat.Result.ReasoningContent)
 				PrintWithPrefix("  ", console.COTEndMessage())
 				PrintWithPrefix("  ", chat.Result.Content)
-				usage := ai.OpenAIUsage(chat.Result.ChatCompletion().Usage)
-				fmt.Printf("| %s\n\n", ai.PriceOrDefault(chat.Result.Model).Cost(usage))
+				usage := pricer.OpenAIUsage(chat.Result.ChatCompletion().Usage)
+				fmt.Printf("| %s\n\n", pricer.PriceOrDefault(chat.Result.Model).Cost(usage))
 			}
 		}
 		h.initialized = true
