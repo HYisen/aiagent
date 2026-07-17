@@ -20,6 +20,7 @@ type Client interface {
 	ListSessions() ([]Session, error)
 	GetVersion() (version *debug.BuildInfo, err error)
 	GetSession(id int) (model.Session, error)
+	GenerateSessionName(cmd string) (scopedIDToNeoNameNullable map[int]string, err error)
 }
 
 // Session flats the difference between its implements [v1Session] and [v2Session],

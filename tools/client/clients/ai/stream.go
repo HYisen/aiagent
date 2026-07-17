@@ -3,6 +3,7 @@ package ai
 import (
 	"aiagent/clients/openai"
 	"aiagent/console"
+	"aiagent/helpers/pricer"
 	"bufio"
 	"encoding/json"
 	"errors"
@@ -84,5 +85,5 @@ func CostMessage(data string) string {
 	if err := json.Unmarshal([]byte(data), &usage); err != nil {
 		return fmt.Sprintf("err: %v", err)
 	}
-	return "estimated cost " + PriceOrDefault(openai.ChatModelDeepSeekV4Pro).Cost(OpenAIUsage(usage))
+	return "estimated cost " + pricer.PriceOrDefault(openai.ChatModelDeepSeekV4Pro).Cost(pricer.OpenAIUsage(usage))
 }

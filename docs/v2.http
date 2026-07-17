@@ -41,4 +41,11 @@ Token: {{token}}
   "model": "deepseek-reasoner"
 }
 
+### v2PostSessionNameGenerate
+
+POST {{host}}/v2/users/{{userId}}/sessions/name/generate
+Token: {{token}}
+
+1-2
+
 ###

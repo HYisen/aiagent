@@ -63,4 +63,9 @@ Token: {{token}}
 
 This_is_a_message_from_caller.
 
+### v1PostSessionNameGenerate
+
+POST {{host}}/v1/sessions/{{id}}/name/generate
+Token: {{token}}
+
 ###

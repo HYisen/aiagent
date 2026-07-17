@@ -11,9 +11,21 @@ import (
 func FetchAndParseJSON[ResponseType any](request *http.Request) (ResponseType, error) {
 	var ret ResponseType
 
-	resp, err := http.DefaultClient.Do(request)
+	data, err := Fetch(request)
 	if err != nil {
 		return ret, err
+	}
+
+	if err := json.Unmarshal(data, &ret); err != nil {
+		return ret, err
+	}
+	return ret, nil
+}
+
+func Fetch(request *http.Request) (payload []byte, err error) {
+	resp, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return nil, err
 	}
 	defer func(c io.Closer) {
 		err = errors.Join(err, c.Close())
@@ -21,17 +33,13 @@ func FetchAndParseJSON[ResponseType any](request *http.Request) (ResponseType, e
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return ret, err
+		return nil, err
 	}
 	if resp.StatusCode == http.StatusForbidden {
-		return ret, fmt.Errorf("%w: %s", ErrForbidden, string(data))
+		return nil, fmt.Errorf("%w: %s", ErrForbidden, string(data))
 	}
 	if resp.StatusCode != http.StatusOK {
-		return ret, fmt.Errorf("unexpected response status %v: %s", resp.Status, string(data))
+		return nil, fmt.Errorf("unexpected response status %v: %s", resp.Status, string(data))
 	}
-
-	if err := json.Unmarshal(data, &ret); err != nil {
-		return ret, err
-	}
-	return ret, nil
+	return data, nil
 }
